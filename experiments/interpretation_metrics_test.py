@@ -39,7 +39,7 @@ def save_result_dict(path, data):
 
 @timing_decorator
 def run_interpretation_test(dataset_full_name):
-    steps_epochs = 200
+    # steps_epochs = 200
     # num_explaining_nodes = 1
     # explaining_metrics_params = {
     #     "stability_graph_perturbations_nums": 1,

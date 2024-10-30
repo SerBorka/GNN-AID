@@ -83,7 +83,7 @@ class NodesExplainerMetric:
     ):
         print(f"Stability calculation for node id {node_ind} started.")
         base_explanation = self.get_explanation(node_ind)
-        stability = 0
+        stability = []
         for _ in range(graph_perturbations_nums):
             new_x, new_edge_index = self.perturb_graph(
                 self.x, self.edge_index, node_ind, feature_change_percent, node_removal_percent
@@ -92,9 +92,9 @@ class NodesExplainerMetric:
             base_explanation_vector, perturbed_explanation_vector = \
                 NodesExplainerMetric.calculate_explanation_vectors(base_explanation, perturbed_explanation)
 
-            stability += euclidean_distance(base_explanation_vector, perturbed_explanation_vector)
+            stability += [euclidean_distance(base_explanation_vector, perturbed_explanation_vector)]
 
-        stability = stability / graph_perturbations_nums
+        # stability = stability / graph_perturbations_nums
         print(f"Stability calculation for node id {node_ind} completed.")
         return stability
 
@@ -102,15 +102,15 @@ class NodesExplainerMetric:
     def calculate_consistency(self, node_ind, num_explanation_runs=10):
         print(f"Consistency calculation for node id {node_ind} started.")
         explanation = self.get_explanation(node_ind)
-        consistency = 0
+        consistency = []
         for _ in range(num_explanation_runs):
             perturbed_explanation = self.calculate_explanation(self.x, self.edge_index, node_ind)
             base_explanation_vector, perturbed_explanation_vector = \
                 NodesExplainerMetric.calculate_explanation_vectors(explanation, perturbed_explanation)
-            consistency += cosine_similarity(base_explanation_vector, perturbed_explanation_vector)
+            consistency += [cosine_similarity(base_explanation_vector, perturbed_explanation_vector)]
             explanation = perturbed_explanation
 
-        consistency = consistency / num_explanation_runs
+        # consistency = consistency / num_explanation_runs
         print(f"Consistency calculation for node id {node_ind} completed.")
         return consistency
 
