@@ -188,7 +188,7 @@ class NodesExplainerMetric:
             nodes_to_remove = neighbors[
                 torch.randperm(neighbors.size(0), device=edge_index.device)[:num_nodes_to_remove]
             ]
-            mask = ~((edge_index[0] == node_ind) & edge_index[1].isin(nodes_to_remove))
+            mask = ~((edge_index[0] == node_ind) & torch.isin(edge_index[1], nodes_to_remove))
             new_edge_index = edge_index[:, mask]
         else:
             new_edge_index = edge_index

@@ -48,30 +48,39 @@ def run_interpretation_test(dataset_full_name):
     #     "consistency_num_explanation_runs": 1
     # }
     steps_epochs = 200
-    num_explaining_nodes = 100
+    num_explaining_nodes = 30
     explaining_metrics_params = {
-        "stability_graph_perturbations_nums": 20,
+        "stability_graph_perturbations_nums": 15,
         "stability_feature_change_percent": 0.05,
         "stability_node_removal_percent": 0.05,
-        "consistency_num_explanation_runs": 20
+        "consistency_num_explanation_runs": 15
     }
     explainer_name = 'GNNExplainer(torch-geom)'
     dataset_key_name = "_".join(dataset_full_name)
     metrics_path = root_dir / "experiments" / "explainers_metrics"
     dataset_metrics_path = metrics_path / f"{dataset_key_name}_{explainer_name}_metrics.json"
 
-    restart_experiment = True
-    if restart_experiment:
-        result_dict = {}
-    else:
-        result_dict = load_result_dict(dataset_metrics_path)
-
     dataset, data, results_dataset_path = DatasetManager.get_by_full_name(
         full_name=dataset_full_name,
         dataset_ver_ind=0
     )
 
-    node_indices = random.sample(range(dataset.data.x.shape[0]), num_explaining_nodes)
+    # NodesExplainerMetric.perturb_graph(data.x, data.edge_index, 0, 0.05, 1)
+
+    restart_experiment = True
+    if restart_experiment:
+        node_indices = random.sample(range(dataset.data.x.shape[0]), num_explaining_nodes)
+        result_dict = {
+            "nodes": list(node_indices)
+        }
+    else:
+        result_dict = load_result_dict(dataset_metrics_path)
+        if "nodes" not in result_dict:
+            node_indices = random.sample(range(dataset.data.x.shape[0]), num_explaining_nodes)
+            result_dict["nodes"] = list(node_indices)
+        node_indices = result_dict["nodes"]
+
+
 
     #
     # try:
@@ -286,7 +295,6 @@ def calculate_jaccard_defence_metrics(
     )
 
     gnn_model_manager.set_poison_defender(poison_defense_config=poison_defense_config)
-
     warnings.warn("Start training")
     try:
         print("Loading model executor")
@@ -556,7 +564,7 @@ def calculate_gnnguard_defence_metrics(
 
 
 if __name__ == '__main__':
-    random.seed(777)
+    # random.seed(777)
     # dataset_full_name = ("single-graph", "Planetoid", 'Cora')
     # run_interpretation_test(dataset_full_name)
     dataset_full_name = ("single-graph", "Amazon", 'Photo')
