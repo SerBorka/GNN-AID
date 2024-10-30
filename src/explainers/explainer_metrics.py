@@ -2,6 +2,8 @@ import numpy as np
 import torch
 from torch_geometric.utils import subgraph
 
+from aux.custom_decorators import timing_decorator
+
 
 class NodesExplainerMetric:
     def __init__(self, model, graph, explainer, kwargs_dict):
@@ -20,6 +22,7 @@ class NodesExplainerMetric:
         self.nodes_explanations = {}  # explanations cache. node_ind -> explanation
         self.dictionary = {
         }
+        print(f"NodesExplainerMetric initialized with kwargs:\n{self.kwargs_dict}")
 
     def evaluate(self, target_nodes_indices):
         num_targets = len(target_nodes_indices)
@@ -46,6 +49,7 @@ class NodesExplainerMetric:
         self.dictionary["fidelity"] = fidelity
         return self.dictionary
 
+    @timing_decorator
     def calculate_fidelity(self, target_nodes_indices):
         original_answer = self.model.get_answer(self.x, self.edge_index)
         same_answers_count = 0
@@ -186,8 +190,7 @@ class NodesExplainerMetric:
             nodes_to_remove = neighbors[
                 torch.randperm(neighbors.size(0), device=edge_index.device)[:num_nodes_to_remove]
             ]
-            mask = ~((edge_index[0] == node_ind).unsqueeze(1) & (edge_index[1].unsqueeze(0) == nodes_to_remove).any(
-                dim=0))
+            mask = ~((edge_index[0] == node_ind) & edge_index[1].isin(nodes_to_remove))
             new_edge_index = edge_index[:, mask]
         else:
             new_edge_index = edge_index
