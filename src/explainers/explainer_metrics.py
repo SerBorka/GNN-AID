@@ -199,7 +199,7 @@ class NodesExplainerMetric:
 def process_metric(data):
     np_data = np.array(data)
     return {
-        "mean": np.mean(np_сdata),
+        "mean": np.mean(np_data),
         "var": np.var(np_data),
         "data": data
     }
