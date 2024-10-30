@@ -30,17 +30,17 @@ class NodesExplainerMetric:
         consistency = []
         for node_ind in target_nodes_indices:
             self.get_explanation(node_ind)
-            sparsity += self.calculate_sparsity(node_ind)
-            stability += self.calculate_stability(
+            sparsity += [self.calculate_sparsity(node_ind)]
+            stability += [self.calculate_stability(
                 node_ind,
                 graph_perturbations_nums=self.kwargs_dict["stability_graph_perturbations_nums"],
                 feature_change_percent=self.kwargs_dict["stability_feature_change_percent"],
                 node_removal_percent=self.kwargs_dict["stability_node_removal_percent"]
-            )
-            consistency += self.calculate_consistency(
+            )]
+            consistency += [self.calculate_consistency(
                 node_ind,
                 num_explanation_runs=self.kwargs_dict["consistency_num_explanation_runs"]
-            )
+            )]
         fidelity = self.calculate_fidelity(target_nodes_indices)
         self.dictionary["sparsity"] = process_metric(sparsity)
         self.dictionary["stability"] = process_metric(stability)
@@ -199,10 +199,11 @@ class NodesExplainerMetric:
 def process_metric(data):
     np_data = np.array(data)
     return {
-        "mean": np.mean(np_data),
+        "mean": np.mean(np_сdata),
         "var": np.var(np_data),
         "data": data
     }
+
 
 def cosine_similarity(a, b):
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
