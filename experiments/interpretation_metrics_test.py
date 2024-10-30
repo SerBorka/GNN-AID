@@ -40,12 +40,12 @@ def save_result_dict(path, data):
 @timing_decorator
 def run_interpretation_test(dataset_full_name):
     steps_epochs = 200
-    num_explaining_nodes = 50
+    num_explaining_nodes = 100
     explaining_metrics_params = {
-        "stability_graph_perturbations_nums": 5,
+        "stability_graph_perturbations_nums": 20,
         "stability_feature_change_percent": 0.05,
         "stability_node_removal_percent": 0.05,
-        "consistency_num_explanation_runs": 5
+        "consistency_num_explanation_runs": 20
     }
     explainer_name = 'GNNExplainer(torch-geom)'
     dataset_key_name = "_".join(dataset_full_name)
@@ -65,81 +65,76 @@ def run_interpretation_test(dataset_full_name):
 
     node_indices = random.sample(range(dataset.data.x.shape[0]), num_explaining_nodes)
 
-    # new_x, new_edge_index = NodesExplainerMetric.perturb_graph(data.x, data.edge_index, node_indices[0], 0.05, 0.05)
-    try:
-        unprotected_key = "Unprotected"
-        if unprotected_key not in result_dict:
-            print(f"Calculation of explanation metrics with defence: {unprotected_key} started.")
-            metrics = calculate_unprotected_metrics(
-                dataset_full_name,
-                explainer_name,
-                steps_epochs,
-                num_explaining_nodes,
-                explaining_metrics_params,
-                dataset,
-                node_indices
-            )
-            result_dict[unprotected_key] = metrics
-            print(f"Calculation of explanation metrics with defence: {unprotected_key} completed. Metrics:\n{metrics}")
-            save_result_dict(dataset_metrics_path, result_dict)
-    except Exception:
-        pass
-    try:
-        jaccard_key = "Jaccard_defence"
-        if jaccard_key not in result_dict:
-            print(f"Calculation of explanation metrics with defence: {jaccard_key} started.")
-            metrics = calculate_jaccard_defence_metrics(
-                dataset_full_name,
-                explainer_name,
-                steps_epochs,
-                num_explaining_nodes,
-                explaining_metrics_params,
-                dataset,
-                node_indices
-            )
-            result_dict[jaccard_key] = metrics
-            print(f"Calculation of explanation metrics with defence: {jaccard_key} completed. Metrics:\n{metrics}")
-            save_result_dict(dataset_metrics_path, result_dict)
-    except Exception:
-        pass
+    #
+    # try:
+    #     unprotected_key = "Unprotected"
+    #     if unprotected_key not in result_dict:
+    #         print(f"Calculation of explanation metrics with defence: {unprotected_key} started.")
+    #         metrics = calculate_unprotected_metrics(
+    #             dataset_full_name,
+    #             explainer_name,
+    #             steps_epochs,
+    #             num_explaining_nodes,
+    #             explaining_metrics_params,
+    #             dataset,
+    #             node_indices
+    #         )
+    #         result_dict[unprotected_key] = metrics
+    #         print(f"Calculation of explanation metrics with defence: {unprotected_key} completed. Metrics:\n{metrics}")
+    #         save_result_dict(dataset_metrics_path, result_dict)
+    # except Exception:
+    #     pass
+    # try:
+    #     jaccard_key = "Jaccard_defence"
+    #     if jaccard_key not in result_dict:
+    #         print(f"Calculation of explanation metrics with defence: {jaccard_key} started.")
+    #         metrics = calculate_jaccard_defence_metrics(
+    #             dataset_full_name,
+    #             explainer_name,
+    #             steps_epochs,
+    #             num_explaining_nodes,
+    #             explaining_metrics_params,
+    #             dataset,
+    #             node_indices
+    #         )
+    #         result_dict[jaccard_key] = metrics
+    #         print(f"Calculation of explanation metrics with defence: {jaccard_key} completed. Metrics:\n{metrics}")
+    #         save_result_dict(dataset_metrics_path, result_dict)
+    # except Exception:
+    #     pass
+    
 
-    try:
-        adv_training_key = "AdvTraining_defence"
-        if adv_training_key not in result_dict:
-            print(f"Calculation of explanation metrics with defence: {adv_training_key} started.")
-            metrics = calculate_adversial_defence_metrics(
-                dataset_full_name,
-                explainer_name,
-                steps_epochs,
-                num_explaining_nodes,
-                explaining_metrics_params,
-                dataset,
-                node_indices
-            )
-            result_dict[adv_training_key] = metrics
-            print(f"Calculation of explanation metrics with defence: {adv_training_key} completed. Metrics:\n{metrics}")
-            save_result_dict(dataset_metrics_path, result_dict)
-    except Exception:
-        pass
+    adv_training_key = "AdvTraining_defence"
+    if adv_training_key not in result_dict:
+        print(f"Calculation of explanation metrics with defence: {adv_training_key} started.")
+        metrics = calculate_adversial_defence_metrics(
+            dataset_full_name,
+            explainer_name,
+            steps_epochs,
+            num_explaining_nodes,
+            explaining_metrics_params,
+            dataset,
+            node_indices
+        )
+        result_dict[adv_training_key] = metrics
+        print(f"Calculation of explanation metrics with defence: {adv_training_key} completed. Metrics:\n{metrics}")
+        save_result_dict(dataset_metrics_path, result_dict)
 
-    try:
-        gnnguard_key = "GNNGuard_defence"
-        if gnnguard_key not in result_dict:
-            print(f"Calculation of explanation metrics with defence: {gnnguard_key} started.")
-            metrics = calculate_adversial_defence_metrics(
-                dataset_full_name,
-                explainer_name,
-                steps_epochs,
-                num_explaining_nodes,
-                explaining_metrics_params,
-                dataset,
-                node_indices
-            )
-            result_dict[gnnguard_key] = metrics
-            print(f"Calculation of explanation metrics with defence: {gnnguard_key} completed. Metrics:\n{metrics}")
-            save_result_dict(dataset_metrics_path, result_dict)
-    except Exception:
-        pass
+    gnnguard_key = "GNNGuard_defence"
+    if gnnguard_key not in result_dict:
+        print(f"Calculation of explanation metrics with defence: {gnnguard_key} started.")
+        metrics = calculate_adversial_defence_metrics(
+            dataset_full_name,
+            explainer_name,
+            steps_epochs,
+            num_explaining_nodes,
+            explaining_metrics_params,
+            dataset,
+            node_indices
+        )
+        result_dict[gnnguard_key] = metrics
+        print(f"Calculation of explanation metrics with defence: {gnnguard_key} completed. Metrics:\n{metrics}")
+        save_result_dict(dataset_metrics_path, result_dict)
 
 
 
@@ -554,7 +549,7 @@ def calculate_gnnguard_defence_metrics(
 
 if __name__ == '__main__':
     random.seed(777)
-    dataset_full_name = ("single-graph", "Planetoid", 'Cora')
-    run_interpretation_test(dataset_full_name)
+    # dataset_full_name = ("single-graph", "Planetoid", 'Cora')
+    # run_interpretation_test(dataset_full_name)
     dataset_full_name = ("single-graph", "Amazon", 'Photo')
     run_interpretation_test(dataset_full_name)
