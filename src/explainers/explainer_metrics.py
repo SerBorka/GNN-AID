@@ -25,10 +25,9 @@ class NodesExplainerMetric:
         print(f"NodesExplainerMetric initialized with kwargs:\n{self.kwargs_dict}")
 
     def evaluate(self, target_nodes_indices):
-        num_targets = len(target_nodes_indices)
-        sparsity = 0
-        stability = 0
-        consistency = 0
+        sparsity = []
+        stability = []
+        consistency = []
         for node_ind in target_nodes_indices:
             self.get_explanation(node_ind)
             sparsity += self.calculate_sparsity(node_ind)
@@ -43,16 +42,16 @@ class NodesExplainerMetric:
                 num_explanation_runs=self.kwargs_dict["consistency_num_explanation_runs"]
             )
         fidelity = self.calculate_fidelity(target_nodes_indices)
-        self.dictionary["sparsity"] = sparsity / num_targets
-        self.dictionary["stability"] = stability / num_targets
-        self.dictionary["consistency"] = consistency / num_targets
-        self.dictionary["fidelity"] = fidelity
+        self.dictionary["sparsity"] = process_metric(sparsity)
+        self.dictionary["stability"] = process_metric(stability)
+        self.dictionary["consistency"] = process_metric(consistency)
+        self.dictionary["fidelity"] = process_metric(fidelity)
         return self.dictionary
 
     @timing_decorator
     def calculate_fidelity(self, target_nodes_indices):
         original_answer = self.model.get_answer(self.x, self.edge_index)
-        same_answers_count = 0
+        same_answers_count = []
         for node_ind in target_nodes_indices:
             node_explanation = self.get_explanation(node_ind)
             new_x, new_edge_index, new_target_node = self.filter_graph_by_explanation(
@@ -61,10 +60,9 @@ class NodesExplainerMetric:
             filtered_answer = self.model.get_answer(new_x, new_edge_index)
             matched = filtered_answer[new_target_node] == original_answer[node_ind]
             print(f"Processed fidelity calculation for node id {node_ind}. Matched: {matched}")
-            if matched:
-                same_answers_count += 1
-        fidelity = same_answers_count / len(target_nodes_indices)
-        return fidelity
+            same_answers_count.append(int(matched))
+
+        return same_answers_count
 
     def calculate_sparsity(self, node_ind):
         explanation = self.get_explanation(node_ind)
@@ -197,6 +195,14 @@ class NodesExplainerMetric:
 
         return new_x, new_edge_index
 
+
+def process_metric(data):
+    np_data = np.array(data)
+    return {
+        "mean": np.mean(np_data),
+        "var": np.var(np_data),
+        "data": data
+    }
 
 def cosine_similarity(a, b):
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
