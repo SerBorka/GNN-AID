@@ -29,6 +29,7 @@ class NodesExplainerMetric:
         stability = []
         consistency = []
         for node_ind in target_nodes_indices:
+            print(f"Processing explanation metrics calculation for node id {node_ind}.")
             self.get_explanation(node_ind)
             sparsity += [self.calculate_sparsity(node_ind)]
             stability += [self.calculate_stability(
@@ -64,12 +65,15 @@ class NodesExplainerMetric:
 
         return same_answers_count
 
+    @timing_decorator
     def calculate_sparsity(self, node_ind):
         explanation = self.get_explanation(node_ind)
         sparsity = 1 - (len(explanation["data"]["nodes"]) + len(explanation["data"]["edges"])) / (
                 len(self.x) + len(self.edge_index))
+        print(f"Sparsity calculation for node id {node_ind} completed.")
         return sparsity
 
+    @timing_decorator
     def calculate_stability(
             self,
             node_ind,
@@ -77,6 +81,7 @@ class NodesExplainerMetric:
             feature_change_percent=0.05,
             node_removal_percent=0.05
     ):
+        print(f"Stability calculation for node id {node_ind} started.")
         base_explanation = self.get_explanation(node_ind)
         stability = 0
         for _ in range(graph_perturbations_nums):
@@ -90,9 +95,12 @@ class NodesExplainerMetric:
             stability += euclidean_distance(base_explanation_vector, perturbed_explanation_vector)
 
         stability = stability / graph_perturbations_nums
+        print(f"Stability calculation for node id {node_ind} completed.")
         return stability
 
+    @timing_decorator
     def calculate_consistency(self, node_ind, num_explanation_runs=10):
+        print(f"Consistency calculation for node id {node_ind} started.")
         explanation = self.get_explanation(node_ind)
         consistency = 0
         for _ in range(num_explanation_runs):
@@ -103,12 +111,14 @@ class NodesExplainerMetric:
             explanation = perturbed_explanation
 
         consistency = consistency / num_explanation_runs
+        print(f"Consistency calculation for node id {node_ind} completed.")
         return consistency
 
+    @timing_decorator
     def calculate_explanation(self, x, edge_index, node_idx, **kwargs):
-        print(f"Processing explanation calculation for node id {node_idx}.")
+        # print(f"Processing explanation calculation for node id {node_idx}.")
         self.explainer.evaluate_tensor_graph(x, edge_index, node_idx, **kwargs)
-        print(f"Explanation calculation for node id {node_idx} completed.")
+        # print(f"Explanation calculation for node id {node_idx} completed.")
         return self.explainer.explanation.dictionary
 
     def get_explanation(self, node_ind):
