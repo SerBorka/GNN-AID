@@ -67,7 +67,7 @@ def run_interpretation_test(dataset_full_name):
 
     # NodesExplainerMetric.perturb_graph(data.x, data.edge_index, 0, 0.05, 1)
 
-    restart_experiment = True
+    restart_experiment = False
     if restart_experiment:
         node_indices = random.sample(range(dataset.data.x.shape[0]), num_explaining_nodes)
         result_dict = {
@@ -566,7 +566,7 @@ def calculate_gnnguard_defence_metrics(
 
 if __name__ == '__main__':
     # random.seed(777)
-    dataset_full_name = ("single-graph", "Planetoid", 'Cora')
-    run_interpretation_test(dataset_full_name)
+    # dataset_full_name = ("single-graph", "Planetoid", 'Cora')
+    # run_interpretation_test(dataset_full_name)
     dataset_full_name = ("single-graph", "Amazon", 'Photo')
     run_interpretation_test(dataset_full_name)
