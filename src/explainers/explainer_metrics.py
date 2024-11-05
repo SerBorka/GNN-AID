@@ -117,6 +117,7 @@ class NodesExplainerMetric:
     @timing_decorator
     def calculate_explanation(self, x, edge_index, node_idx, **kwargs):
         # print(f"Processing explanation calculation for node id {node_idx}.")
+        # self.explainer.run('local', {'element_idx': node_idx}, finalize=True)
         self.explainer.evaluate_tensor_graph(x, edge_index, node_idx, **kwargs)
         # print(f"Explanation calculation for node id {node_idx} completed.")
         return self.explainer.explanation.dictionary
