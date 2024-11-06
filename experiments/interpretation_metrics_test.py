@@ -43,23 +43,23 @@ def get_model_by_name(model_name, dataset):
 
 @timing_decorator
 def run_interpretation_test(dataset_full_name, model_name):
-    steps_epochs = 10
-    num_explaining_nodes = 1
-    explaining_metrics_params = {
-        "stability_graph_perturbations_nums": 1,
-        "stability_feature_change_percent": 0.05,
-        "stability_node_removal_percent": 0.05,
-        "consistency_num_explanation_runs": 1,
-        "max_nodes": 1
-    }
-    # steps_epochs = 200
-    # num_explaining_nodes = 30
+    # steps_epochs = 10
+    # num_explaining_nodes = 1
     # explaining_metrics_params = {
-    #     "stability_graph_perturbations_nums": 15,
+    #     "stability_graph_perturbations_nums": 1,
     #     "stability_feature_change_percent": 0.05,
     #     "stability_node_removal_percent": 0.05,
-    #     "consistency_num_explanation_runs": 15
+    #     "consistency_num_explanation_runs": 1,
+    #     "max_nodes": 1
     # }
+    steps_epochs = 200
+    num_explaining_nodes = 30
+    explaining_metrics_params = {
+        "stability_graph_perturbations_nums": 5,
+        "stability_feature_change_percent": 0.05,
+        "stability_node_removal_percent": 0.05,
+        "consistency_num_explanation_runs": 5
+    }
     # explainer_name = 'SubgraphX'
     explainer_name = 'GNNExplainer(torch-geom)'
     dataset_key_name = "_".join(dataset_full_name)
@@ -581,7 +581,7 @@ if __name__ == '__main__':
     models = [
         # 'gcn_gcn',
         'gat_gat',
-        'sage_sage',
+        # 'sage_sage',
     ]
     datasets = [
         ("single-graph", "Planetoid", 'Cora'),
