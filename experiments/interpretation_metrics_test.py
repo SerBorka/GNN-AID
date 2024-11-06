@@ -7,11 +7,11 @@ import torch
 
 from aux.custom_decorators import timing_decorator
 from aux.utils import EXPLAINERS_LOCAL_RUN_PARAMETERS_PATH, EXPLAINERS_INIT_PARAMETERS_PATH, root_dir, \
-    EVASION_DEFENSE_PARAMETERS_PATH, EVASION_ATTACK_PARAMETERS_PATH
-from explainers.explainer_metrics import NodesExplainerMetric
+    EVASION_DEFENSE_PARAMETERS_PATH, EVASION_ATTACK_PARAMETERS_PATH, POISON_ATTACK_PARAMETERS_PATH
 from explainers.explainers_manager import FrameworkExplainersManager
+from models_builder.gnn_constructor import FrameworkGNNConstructor
 from models_builder.gnn_models import FrameworkGNNModelManager, Metric
-from src.aux.configs import ModelModificationConfig, ConfigPattern
+from src.aux.configs import ModelModificationConfig, ConfigPattern, ModelConfig
 from src.aux.utils import POISON_DEFENSE_PARAMETERS_PATH
 from src.base.datasets_processing import DatasetManager
 from src.models_builder.models_zoo import model_configs_zoo
@@ -37,9 +37,13 @@ def save_result_dict(path, data):
         json.dump(data, file)
 
 
+def get_model_by_name(model_name, dataset):
+    return model_configs_zoo(dataset=dataset, model_name=model_name)
+
+
 @timing_decorator
-def run_interpretation_test(dataset_full_name):
-    steps_epochs = 20
+def run_interpretation_test(dataset_full_name, model_name):
+    steps_epochs = 10
     num_explaining_nodes = 1
     explaining_metrics_params = {
         "stability_graph_perturbations_nums": 1,
@@ -56,11 +60,11 @@ def run_interpretation_test(dataset_full_name):
     #     "stability_node_removal_percent": 0.05,
     #     "consistency_num_explanation_runs": 15
     # }
-    explainer_name = 'SubgraphX'
-    # explainer_name = 'GNNExplainer(torch-geom)'
+    # explainer_name = 'SubgraphX'
+    explainer_name = 'GNNExplainer(torch-geom)'
     dataset_key_name = "_".join(dataset_full_name)
     metrics_path = root_dir / "experiments" / "explainers_metrics"
-    dataset_metrics_path = metrics_path / f"{dataset_key_name}_{explainer_name}_metrics.json"
+    dataset_metrics_path = metrics_path / f"{model_name}_{dataset_key_name}_{explainer_name}_metrics.json"
 
     dataset, data, results_dataset_path = DatasetManager.get_by_full_name(
         full_name=dataset_full_name,
@@ -69,7 +73,7 @@ def run_interpretation_test(dataset_full_name):
 
     # NodesExplainerMetric.perturb_graph(data.x, data.edge_index, 0, 0.05, 1)
 
-    restart_experiment = False
+    restart_experiment = True
     if restart_experiment:
         node_indices = random.sample(range(dataset.data.x.shape[0]), num_explaining_nodes)
         result_dict = {
@@ -89,7 +93,6 @@ def run_interpretation_test(dataset_full_name):
         explaining_metrics_params = result_dict["metrics_params"]
         num_explaining_nodes = result_dict["num_nodes"]
 
-
     unprotected_key = "Unprotected"
     if unprotected_key not in result_dict:
         print(f"Calculation of explanation metrics with defence: {unprotected_key} started.")
@@ -100,7 +103,8 @@ def run_interpretation_test(dataset_full_name):
             num_explaining_nodes,
             explaining_metrics_params,
             dataset,
-            node_indices
+            node_indices,
+            model_name
         )
         result_dict[unprotected_key] = metrics
         print(f"Calculation of explanation metrics with defence: {unprotected_key} completed. Metrics:\n{metrics}")
@@ -116,13 +120,12 @@ def run_interpretation_test(dataset_full_name):
             num_explaining_nodes,
             explaining_metrics_params,
             dataset,
-            node_indices
+            node_indices,
+            model_name
         )
         result_dict[jaccard_key] = metrics
         print(f"Calculation of explanation metrics with defence: {jaccard_key} completed. Metrics:\n{metrics}")
         save_result_dict(dataset_metrics_path, result_dict)
-
-
 
     adv_training_key = "AdvTraining_defence"
     if adv_training_key not in result_dict:
@@ -134,7 +137,8 @@ def run_interpretation_test(dataset_full_name):
             num_explaining_nodes,
             explaining_metrics_params,
             dataset,
-            node_indices
+            node_indices,
+            model_name
         )
         result_dict[adv_training_key] = metrics
         print(f"Calculation of explanation metrics with defence: {adv_training_key} completed. Metrics:\n{metrics}")
@@ -150,12 +154,12 @@ def run_interpretation_test(dataset_full_name):
             num_explaining_nodes,
             explaining_metrics_params,
             dataset,
-            node_indices
+            node_indices,
+            model_name
         )
         result_dict[gnnguard_key] = metrics
         print(f"Calculation of explanation metrics with defence: {gnnguard_key} completed. Metrics:\n{metrics}")
         save_result_dict(dataset_metrics_path, result_dict)
-
 
 
 @timing_decorator
@@ -166,14 +170,14 @@ def calculate_unprotected_metrics(
         num_explaining_nodes,
         explaining_metrics_params,
         dataset,
-        node_indices
+        node_indices,
+        model_name
 ):
     save_model_flag = False
     device = torch.device('cpu')
 
     data, results_dataset_path = dataset.data, dataset.results_dir
 
-    gnn = model_configs_zoo(dataset=dataset, model_name='gcn_gcn')
     manager_config = ConfigPattern(
         _config_class="ModelManagerConfig",
         _config_kwargs={
@@ -187,6 +191,9 @@ def calculate_unprotected_metrics(
             }
         }
     )
+
+    gnn = get_model_by_name(model_name, dataset)
+
     gnn_model_manager = FrameworkGNNModelManager(
         gnn=gnn,
         dataset_path=results_dataset_path,
@@ -258,14 +265,15 @@ def calculate_jaccard_defence_metrics(
         num_explaining_nodes,
         explaining_metrics_params,
         dataset,
-        node_indices
+        node_indices,
+        model_name
 ):
     save_model_flag = False
     device = torch.device('cpu')
 
     data, results_dataset_path = dataset.data, dataset.results_dir
 
-    gnn = model_configs_zoo(dataset=dataset, model_name='gcn_gcn')
+    gnn = get_model_by_name(model_name, dataset)
     manager_config = ConfigPattern(
         _config_class="ModelManagerConfig",
         _config_kwargs={
@@ -358,14 +366,15 @@ def calculate_adversial_defence_metrics(
         num_explaining_nodes,
         explaining_metrics_params,
         dataset,
-        node_indices
+        node_indices,
+        model_name
 ):
     save_model_flag = False
     device = torch.device('cpu')
 
     data, results_dataset_path = dataset.data, dataset.results_dir
 
-    gnn = model_configs_zoo(dataset=dataset, model_name='gcn_gcn')
+    gnn = get_model_by_name(model_name, dataset)
     manager_config = ConfigPattern(
         _config_class="ModelManagerConfig",
         _config_kwargs={
@@ -471,14 +480,15 @@ def calculate_gnnguard_defence_metrics(
         num_explaining_nodes,
         explaining_metrics_params,
         dataset,
-        node_indices
+        node_indices,
+        model_name
 ):
     save_model_flag = False
     device = torch.device('cpu')
 
     data, results_dataset_path = dataset.data, dataset.results_dir
 
-    gnn = model_configs_zoo(dataset=dataset, model_name='gcn_gcn')
+    gnn = get_model_by_name(model_name, dataset)
     manager_config = ConfigPattern(
         _config_class="ModelManagerConfig",
         _config_kwargs={
@@ -568,7 +578,18 @@ def calculate_gnnguard_defence_metrics(
 
 if __name__ == '__main__':
     # random.seed(777)
-    dataset_full_name = ("single-graph", "Planetoid", 'Cora')
-    run_interpretation_test(dataset_full_name)
+    models = [
+        # 'gcn_gcn',
+        'gat_gat',
+        'sage_sage',
+    ]
+    datasets = [
+        ("single-graph", "Planetoid", 'Cora'),
+        ("single-graph", "Amazon", 'Photo'),
+    ]
+
+    for dataset_full_name in datasets:
+        for model_name in models:
+            run_interpretation_test(dataset_full_name, model_name)
     # dataset_full_name = ("single-graph", "Amazon", 'Photo')
     # run_interpretation_test(dataset_full_name)
