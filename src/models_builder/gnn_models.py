@@ -72,6 +72,8 @@ class Metric:
 
     def compute(self, y_true, y_pred):
         if self.name in Metric.available_metrics:
+            if y_true.device != "cpu":
+                y_true = y_true.cpu()
             return Metric.available_metrics[self.name](y_true, y_pred, **self.kwargs)
 
         raise NotImplementedError()
@@ -1034,7 +1036,7 @@ class FrameworkGNNModelManager(GNNModelManager):
 
                 number_of_batches = ceil(mask_size / self.batch)
                 # data_x_elem_len = data.x.size()[1]
-                full_out = torch.Tensor()
+                full_out = torch.empty(0, device=data.x.device)
                 # features_mask_tensor = torch.full(size=data.x.size(), fill_value=True)
 
                 for batch_ind in range(number_of_batches):

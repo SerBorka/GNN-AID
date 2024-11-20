@@ -2,9 +2,9 @@ import torch
 
 import warnings
 
-
 from torch import device
 
+from models_builder.models_utils import apply_decorator_to_graph_layers
 from src.aux.utils import POISON_ATTACK_PARAMETERS_PATH, POISON_DEFENSE_PARAMETERS_PATH, EVASION_ATTACK_PARAMETERS_PATH, \
     EVASION_DEFENSE_PARAMETERS_PATH
 from src.models_builder.gnn_models import FrameworkGNNModelManager, Metric
@@ -18,15 +18,14 @@ from defense.GNNGuard import gnnguard
 
 
 def test_attack_defense():
-
     my_device = device('cuda' if torch.cuda.is_available() else 'cpu')
 
     full_name = None
 
     # full_name = ("multiple-graphs", "TUDataset", 'MUTAG')
     # full_name = ("single-graph", "custom", 'karate')
-    # full_name = ("single-graph", "Planetoid", 'Cora')
-    full_name = ("single-graph", "Amazon", 'Photo')
+    full_name = ("single-graph", "Planetoid", 'Cora')
+    # full_name = ("single-graph", "Amazon", 'Photo')
     # full_name = ("single-graph", "Planetoid", 'CiteSeer')
     # full_name = ("multiple-graphs", "TUDataset", 'PROTEINS')
 
@@ -183,7 +182,7 @@ def test_attack_defense():
         _import_path=EVASION_ATTACK_PARAMETERS_PATH,
         _config_class="EvasionAttackConfig",
         _config_kwargs={
-            "node_idx": 0, # Node for attack
+            "node_idx": 0,  # Node for attack
             "n_perturbations": 20,
             "perturb_features": True,
             "perturb_structure": True,
@@ -192,12 +191,12 @@ def test_attack_defense():
         }
     )
 
-    netattackgroup_evasion_attack_config =  ConfigPattern(
+    netattackgroup_evasion_attack_config = ConfigPattern(
         _class_name="NettackGroupEvasionAttacker",
         _import_path=EVASION_ATTACK_PARAMETERS_PATH,
         _config_class="EvasionAttackConfig",
         _config_kwargs={
-            "node_idxs": [random.randint(0, 500) for _ in range(20)], # Nodes for attack
+            "node_idxs": [random.randint(0, 500) for _ in range(20)],  # Nodes for attack
             "n_perturbations": 50,
             "perturb_features": True,
             "perturb_structure": True,
@@ -215,7 +214,6 @@ def test_attack_defense():
         }
     )
 
-
     fgsm_evasion_attack_config0 = ConfigPattern(
         _class_name="FGSM",
         _import_path=EVASION_ATTACK_PARAMETERS_PATH,
@@ -230,14 +228,14 @@ def test_attack_defense():
         _config_class="EvasionDefenseConfig",
         _config_kwargs={
             "attack_name": None,
-            "attack_config": fgsm_evasion_attack_config0 # evasion_attack_config
+            "attack_config": fgsm_evasion_attack_config0
         }
     )
 
     # gnn_model_manager.set_poison_attacker(poison_attack_config=random_poison_attack_config)
     # gnn_model_manager.set_poison_defender(poison_defense_config=gnnguard_poison_defense_config)
     # gnn_model_manager.set_evasion_attacker(evasion_attack_config=netattackgroup_evasion_attack_config)
-    gnn_model_manager.set_evasion_defender(evasion_defense_config=at_evasion_defense_config)
+    # gnn_model_manager.set_evasion_defender(evasion_defense_config=at_evasion_defense_config)
 
     warnings.warn("Start training")
     dataset.train_test_split()
@@ -264,6 +262,7 @@ def test_attack_defense():
         gen_dataset=dataset, metrics=[Metric("F1", mask='test', average='macro'),
                                       Metric("Accuracy", mask='test')])
     print(metric_loc)
+
 
 def test_meta():
     from attacks.metattack import meta_gradient_attack
@@ -335,6 +334,7 @@ def test_meta():
         gen_dataset=dataset, metrics=[Metric("F1", mask='test', average='macro'),
                                       Metric("Accuracy", mask='test')])
     print(metric_loc)
+
 
 def test_nettack_evasion():
     my_device = device('cpu')
@@ -444,6 +444,7 @@ def test_nettack_evasion():
                                                     metrics=[Metric("Accuracy", mask=mask_loc)])[mask_loc]['Accuracy']
     print(f"Accuracy on test loc: {acc_test_loc}")
 
+
 def test_qattack():
     from attacks.QAttack import qattack
     my_device = device('cpu')
@@ -499,7 +500,6 @@ def test_qattack():
     # acc_train = gnn_model_manager.evaluate_model(gen_dataset=dataset,
     #                                              metrics=[Metric("Accuracy", mask='train')])['train']['Accuracy']
 
-
     acc_test = gnn_model_manager.evaluate_model(gen_dataset=dataset,
                                                 metrics=[Metric("Accuracy", mask='test')])['test']['Accuracy']
     # print(f"Accuracy on train: {acc_train}. Accuracy on test: {acc_test}")
@@ -524,8 +524,7 @@ def test_qattack():
 
     # Attack config
 
-
-    #dataset = gnn_model_manager.evasion_attacker.attack(gnn_model_manager, dataset, None)
+    # dataset = gnn_model_manager.evasion_attacker.attack(gnn_model_manager, dataset, None)
 
     # Attack
     # gnn_model_manager.evaluate_model(gen_dataset=dataset, metrics=[Metric("F1", mask='test', average='macro')])
@@ -550,6 +549,7 @@ def test_qattack():
     #
     # print(f"info_before_evasion_attack: {info_before_evasion_attack}")
     # print(f"info_after_evasion_attack: {info_after_evasion_attack}")
+
 
 def test_jaccard():
     from defense.JaccardDefense import jaccard_def
@@ -778,6 +778,7 @@ def test_adv_training():
                                       Metric("Accuracy", mask='test')])
     print(metric_loc)
 
+
 def test_pgd():
     # ______________________ Attack on node ______________________
     my_device = device('cpu')
@@ -953,8 +954,9 @@ def test_pgd():
 
     # Model prediction on a graph after PGD attack on it
     with torch.no_grad():
-        probabilities = torch.exp(gnn_model_manager.gnn(gnn_model_manager.evasion_attacker.attack_diff.dataset[graph_idx].x,
-                                                        gnn_model_manager.evasion_attacker.attack_diff.dataset[graph_idx].edge_index))
+        probabilities = torch.exp(
+            gnn_model_manager.gnn(gnn_model_manager.evasion_attacker.attack_diff.dataset[graph_idx].x,
+                                  gnn_model_manager.evasion_attacker.attack_diff.dataset[graph_idx].edge_index))
 
     predicted_class = probabilities.argmax().item()
     predicted_probability = probabilities[0][predicted_class].item()
@@ -974,10 +976,10 @@ def test_pgd():
 
 if __name__ == '__main__':
     import random
+
     random.seed(10)
-    #test_attack_defense()
+    test_attack_defense()
     # torch.manual_seed(5000)
     # test_gnnguard()
     # test_jaccard()
-    # test_attack_defense()
-    test_pgd()
+    # test_pgd()
