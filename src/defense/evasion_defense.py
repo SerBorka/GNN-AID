@@ -1,8 +1,10 @@
+from typing import Type
+
 import torch
 
 from defense.defense_base import Defender
 from src.aux.utils import import_by_name
-from src.aux.configs import ModelModificationConfig, ConfigPattern
+from src.aux.configs import ModelModificationConfig, ConfigPattern, EvasionAttackConfig
 from src.aux.utils import POISON_ATTACK_PARAMETERS_PATH, POISON_DEFENSE_PARAMETERS_PATH, EVASION_ATTACK_PARAMETERS_PATH, \
     EVASION_DEFENSE_PARAMETERS_PATH
 from attacks.evasion_attacks import FGSMAttacker
@@ -12,24 +14,43 @@ from torch_geometric import data
 import copy
 
 
-class EvasionDefender(Defender):
-    def __init__(self, **kwargs):
+class EvasionDefender(
+    Defender
+):
+    def __init__(
+            self,
+            **kwargs
+    ):
         super().__init__()
 
-    def pre_batch(self, **kwargs):
+    def pre_batch(
+            self,
+            **kwargs
+    ):
         pass
 
-    def post_batch(self, **kwargs):
+    def post_batch(
+            self,
+            **kwargs
+    ):
         pass
 
 
-class EmptyEvasionDefender(EvasionDefender):
+class EmptyEvasionDefender(
+    EvasionDefender
+):
     name = "EmptyEvasionDefender"
 
-    def pre_batch(self, **kwargs):
+    def pre_batch(
+            self,
+            **kwargs
+    ):
         pass
 
-    def post_batch(self, **kwargs):
+    def post_batch(
+            self,
+            **kwargs
+    ):
         pass
 
 
@@ -52,27 +73,39 @@ class GradientRegularizationDefender(EvasionDefender):
 
 
 # TODO Kirill, add code in pre_batch
-class QuantizationDefender(EvasionDefender):
+class QuantizationDefender(
+    EvasionDefender
+):
     name = "QuantizationDefender"
 
-    def __init__(self, qbit=8):
+    def __init__(
+            self,
+            qbit: int = 8
+    ):
         super().__init__()
         self.regularization_strength = qbit
 
-    def pre_batch(self, **kwargs):
+    def pre_batch(
+            self,
+            **kwargs
+    ):
+        # TODO Kirill
         pass
 
 
-class DataWrap:
-    def __init__(self, batch) -> None:
-        self.data = batch
-        self.dataset = self
-
-
-class AdvTraining(EvasionDefender):
+class AdvTraining(
+    EvasionDefender
+):
+    # TODO Kirill, rewrite
     name = "AdvTraining"
 
-    def __init__(self, attack_name=None, attack_config=None, attack_type=None, device='cpu'):
+    def __init__(
+            self,
+            attack_name: str = None,
+            attack_config: EvasionAttackConfig = None,
+            attack_type: str = None,
+            device: str = 'cpu'
+    ):
         super().__init__()
         assert device is not None, "Please specify 'device'!"
         if not attack_config:
@@ -118,7 +151,11 @@ class AdvTraining(EvasionDefender):
         else:
             raise KeyError(f"There is no {self.attack_config._class_name} class")
 
-    def pre_batch(self, model_manager, batch):
+    def pre_batch(
+            self,
+            model_manager: Type,
+            batch
+    ):
         super().pre_batch(model_manager=model_manager, batch=batch)
         self.perturbed_gen_dataset = data.Data()
         self.perturbed_gen_dataset.data = copy.deepcopy(batch)
@@ -129,7 +166,12 @@ class AdvTraining(EvasionDefender):
                                                               gen_dataset=self.perturbed_gen_dataset,
                                                               mask_tensor=self.perturbed_gen_dataset.data.train_mask)
 
-    def post_batch(self, model_manager, batch, loss) -> dict:
+    def post_batch(
+            self,
+            model_manager: Type,
+            batch,
+            loss: torch.Tensor
+    ) -> dict:
         super().post_batch(model_manager=model_manager, batch=batch, loss=loss)
         # Output on perturbed data
         outputs = model_manager.gnn(self.perturbed_gen_dataset.data.x, self.perturbed_gen_dataset.data.edge_index)
