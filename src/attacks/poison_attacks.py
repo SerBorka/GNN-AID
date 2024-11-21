@@ -4,7 +4,7 @@ import torch
 from attacks.attack_base import Attacker
 from pathlib import Path
 
-from base.datasets_processing import DatasetManager
+from base.datasets_processing import GeneralDataset
 
 POISON_ATTACKS_DIR = Path(__file__).parent.resolve() / 'poison_attacks_collection'
 
@@ -47,8 +47,8 @@ class RandomPoisonAttack(
 
     def attack(
             self,
-            gen_dataset: DatasetManager
-    ) -> DatasetManager:
+            gen_dataset: GeneralDataset
+    ) -> GeneralDataset:
         edge_index = gen_dataset.data.edge_index
         random_indices = np.random.choice(
             edge_index.shape[1],

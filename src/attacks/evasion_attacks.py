@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import numpy as np
 
 from attacks.attack_base import Attacker
-from base.datasets_processing import DatasetManager
+from base.datasets_processing import GeneralDataset
 
 # Nettack imports
 from src.attacks.nettack.nettack import Nettack
@@ -55,7 +55,7 @@ class FGSMAttacker(
     def attack(
             self,
             model_manager: Type,
-            gen_dataset: DatasetManager,
+            gen_dataset: GeneralDataset,
             mask_tensor: torch.Tensor
     ):
         gen_dataset.data.x.requires_grad = True
@@ -98,7 +98,7 @@ class PGDAttacker(
     def attack(
             self,
             model_manager: Type,
-            gen_dataset: DatasetManager,
+            gen_dataset: GeneralDataset,
             mask_tensor: torch.Tensor
     ) -> None:
         if gen_dataset.is_multi():
@@ -109,7 +109,7 @@ class PGDAttacker(
     def _attack_on_node(
             self,
             model_manager: Type,
-            gen_dataset: DatasetManager
+            gen_dataset: GeneralDataset
     ) -> None:
         node_idx = self.element_idx
 
@@ -156,7 +156,7 @@ class PGDAttacker(
     def _attack_on_graph(
             self,
             model_manager: Type,
-            gen_dataset: DatasetManager
+            gen_dataset: GeneralDataset
     ):
         graph_idx = self.element_idx
 
@@ -221,9 +221,9 @@ class NettackEvasionAttacker(
     def attack(
             self,
             model_manager: Type,
-            gen_dataset: DatasetManager,
+            gen_dataset: GeneralDataset,
             mask_tensor: torch.Tensor
-    ) -> DatasetManager:
+    ) -> GeneralDataset:
         # Prepare
         data = gen_dataset.data
         _A_obs, _X_obs, _z_obs = data_to_csr_matrix(data)
@@ -278,7 +278,7 @@ class NettackEvasionAttacker(
 
     @staticmethod
     def _evasion(
-            gen_dataset: DatasetManager,
+            gen_dataset: GeneralDataset,
             feature_perturbations,
             structure_perturbations
     ):
@@ -330,9 +330,9 @@ class NettackGroupEvasionAttacker(
     def attack(
             self,
             model_manager: Type,
-            gen_dataset: DatasetManager,
+            gen_dataset: GeneralDataset,
             mask_tensor: torch.Tensor
-    ) -> DatasetManager:
+    ) -> GeneralDataset:
         for node_idx in self.node_idxs:
             self.attacker.node_idx = node_idx
             gen_dataset = self.attacker.attack(model_manager, gen_dataset, mask_tensor)

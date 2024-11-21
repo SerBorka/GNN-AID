@@ -23,7 +23,7 @@ from aux.utils import import_by_name, all_subclasses, FRAMEWORK_PARAMETERS_PATH,
     hash_data_sha256, \
     TECHNICAL_PARAMETER_KEY, IMPORT_INFO_KEY, OPTIMIZERS_PARAMETERS_PATH, FUNCTIONS_PARAMETERS_PATH
 from aux.declaration import Declare
-from base.datasets_processing import DatasetManager
+from base.datasets_processing import GeneralDataset
 from explainers.explainer import ProgressBar
 from explainers.ProtGNN.MCTS import mcts_args
 from attacks.evasion_attacks import EvasionAttacker
@@ -204,7 +204,7 @@ class GNNModelManager:
 
     def train_1_step(
             self,
-            gen_dataset: DatasetManager
+            gen_dataset: GeneralDataset
     ):
         """ Perform 1 step of model training.
         """
@@ -213,7 +213,7 @@ class GNNModelManager:
 
     def train_complete(
             self,
-            gen_dataset: DatasetManager,
+            gen_dataset: GeneralDataset,
             steps: int = None,
             **kwargs
     ) -> None:
@@ -755,7 +755,7 @@ class GNNModelManager:
 
     def before_epoch(
             self,
-            gen_dataset: DatasetManager
+            gen_dataset: GeneralDataset
     ):
         """ This hook is called before training the next training epoch
         """
@@ -763,7 +763,7 @@ class GNNModelManager:
 
     def after_epoch(
             self,
-            gen_dataset: DatasetManager
+            gen_dataset: GeneralDataset
     ):
         """ This hook is called after training the next training epoch
         """
@@ -887,7 +887,7 @@ class FrameworkGNNModelManager(GNNModelManager):
 
     def train_complete(
             self,
-            gen_dataset: DatasetManager,
+            gen_dataset: GeneralDataset,
             steps: int = None,
             pbar: Protocol = None,
             metrics: Union[List[Metric], Metric] = None,
@@ -910,7 +910,7 @@ class FrameworkGNNModelManager(GNNModelManager):
     def early_stopping(
             self,
             train_loss,
-            gen_dataset: DatasetManager,
+            gen_dataset: GeneralDataset,
             metrics: Union[List[Metric], Metric],
             steps: int
     ) -> bool:
@@ -918,7 +918,7 @@ class FrameworkGNNModelManager(GNNModelManager):
 
     def train_1_step(
             self,
-            gen_dataset: DatasetManager
+            gen_dataset: GeneralDataset
     ) -> List[Union[float, int]]:
         task_type = gen_dataset.domain()
         if task_type == "single-graph":
@@ -1063,7 +1063,7 @@ class FrameworkGNNModelManager(GNNModelManager):
     def report_results(
             self,
             train_loss,
-            gen_dataset: DatasetManager,
+            gen_dataset: GeneralDataset,
             metrics: List[Metric]
     ) -> None:
         metrics_values = self.evaluate_model(gen_dataset=gen_dataset, metrics=metrics)
@@ -1076,7 +1076,7 @@ class FrameworkGNNModelManager(GNNModelManager):
 
     def train_model(
             self,
-            gen_dataset: DatasetManager,
+            gen_dataset: GeneralDataset,
             save_model_flag: bool = True,
             mode: Union[str, None] = None,
             steps=None,
@@ -1139,7 +1139,7 @@ class FrameworkGNNModelManager(GNNModelManager):
 
     def run_model(
             self,
-            gen_dataset: DatasetManager,
+            gen_dataset: GeneralDataset,
             mask: Union[str, List[bool], torch.Tensor] = 'test',
             out: str = 'answers'
     ) -> torch.Tensor:
@@ -1227,7 +1227,7 @@ class FrameworkGNNModelManager(GNNModelManager):
 
     def evaluate_model(
             self,
-            gen_dataset: DatasetManager,
+            gen_dataset: GeneralDataset,
             metrics: Union[List[Metric], Metric]
     ) -> dict:
         """
@@ -1271,7 +1271,7 @@ class FrameworkGNNModelManager(GNNModelManager):
 
     def compute_stats_data(
             self,
-            gen_dataset: DatasetManager,
+            gen_dataset: GeneralDataset,
             predictions: bool = False,
             logits: bool = False
     ):
@@ -1353,8 +1353,8 @@ class FrameworkGNNModelManager(GNNModelManager):
 
     def load_train_test_split(
             self,
-            gen_dataset: DatasetManager
-    ) -> DatasetManager:
+            gen_dataset: GeneralDataset
+    ) -> GeneralDataset:
         path = self.model_path_info()
         path = path / 'train_test_split'
         gen_dataset.train_mask, gen_dataset.val_mask, gen_dataset.test_mask, _ = torch.load(path)[:]
@@ -1527,7 +1527,7 @@ class ProtGNNModelManager(FrameworkGNNModelManager):
 
     def before_epoch(
             self,
-            gen_dataset: DatasetManager
+            gen_dataset: GeneralDataset
     ):
         cur_step = self.modification.epochs
         train_ind = [n for n, x in enumerate(gen_dataset.train_mask) if x]
@@ -1568,7 +1568,7 @@ class ProtGNNModelManager(FrameworkGNNModelManager):
     def early_stopping(
             self,
             train_loss,
-            gen_dataset: DatasetManager,
+            gen_dataset: GeneralDataset,
             metrics: Union[List[Metric], Metric],
             steps: int
     ) -> bool:

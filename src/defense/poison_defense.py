@@ -1,6 +1,6 @@
 import numpy as np
 
-from base.datasets_processing import DatasetManager
+from base.datasets_processing import GeneralDataset
 from defense.defense_base import Defender
 
 
@@ -36,8 +36,8 @@ class BadRandomPoisonDefender(
 
     def defense(
             self,
-            gen_dataset: DatasetManager
-    ) -> DatasetManager:
+            gen_dataset: GeneralDataset
+    ) -> GeneralDataset:
         edge_index = gen_dataset.data.edge_index
         random_indices = np.random.choice(
             edge_index.shape[1],
@@ -65,6 +65,6 @@ class EmptyPoisonDefender(
 
     def defense(
             self,
-            gen_dataset:DatasetManager
-    ) -> DatasetManager:
+            gen_dataset: GeneralDataset
+    ) -> GeneralDataset:
         return gen_dataset

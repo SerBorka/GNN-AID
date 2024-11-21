@@ -1,10 +1,10 @@
-from base.datasets_processing import DatasetManager
+from base.datasets_processing import GeneralDataset
 from models_builder.gnn_constructor import FrameworkGNNConstructor
 from aux.configs import ModelConfig, ModelStructureConfig
 
 
 def model_configs_zoo(
-        dataset: DatasetManager,
+        dataset: GeneralDataset,
         model_name: str
 ):
     gat_gin_lin = FrameworkGNNConstructor(

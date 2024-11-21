@@ -1,6 +1,6 @@
 from typing import Type
 
-from base.datasets_processing import DatasetManager
+from base.datasets_processing import GeneralDataset
 
 
 class Defender:
@@ -18,7 +18,7 @@ class Defender:
 
     @staticmethod
     def check_availability(
-            gen_dataset: DatasetManager,
+            gen_dataset: GeneralDataset,
             model_manager: Type
     ):
         return False
