@@ -6,7 +6,6 @@ from typing import Dict, Callable, Union, Iterator, Type
 import torch
 from torch.nn.parameter import UninitializedParameter
 from torch.utils import hooks
-from ..parameter import Parameter
 from torch.utils.hooks import RemovableHandle
 from torch_geometric.nn import MessagePassing
 
@@ -577,7 +576,7 @@ class FrameworkGNNConstructor(
 
     def get_parameters(
             self
-    ) -> Iterator[Parameter]:
+    ) -> Iterator:
         return self.parameters()
 
     def get_answer(

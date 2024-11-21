@@ -1228,6 +1228,7 @@ class FrameworkGNNModelManager(GNNModelManager):
     def evaluate_model(
             self,
             gen_dataset: DatasetManager,
+            metrics: Union[List[Metric], Metric]
     ) -> dict:
         """
         Compute metrics for a model result on a part of dataset specified by the metric mask.

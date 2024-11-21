@@ -1,8 +1,12 @@
+from base.datasets_processing import DatasetManager
 from models_builder.gnn_constructor import FrameworkGNNConstructor
 from aux.configs import ModelConfig, ModelStructureConfig
 
 
-def model_configs_zoo(dataset, model_name):
+def model_configs_zoo(
+        dataset: DatasetManager,
+        model_name: str
+):
     gat_gin_lin = FrameworkGNNConstructor(
         model_config=ModelConfig(
             structure=ModelStructureConfig(
