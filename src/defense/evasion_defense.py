@@ -108,7 +108,7 @@ class QuantizationDefender(
 
     def quantize(
             self,
-            x
+            x: torch.Tensor
     ):
         x_min = x.min()
         x_max = x.max()
@@ -116,6 +116,40 @@ class QuantizationDefender(
         x_quantized = torch.round(x_normalized * (self.num_levels - 1)) / (self.num_levels - 1)
         x_quantized = x_quantized * (x_max - x_min) + x_min
         return x_quantized
+
+
+class DistillationDefender(
+    EvasionDefender
+):
+    name = "DistillationDefender"
+
+    def __init__(
+            self,
+            temperature: float = 5.0
+    ):
+        """
+        """
+        super().__init__()
+        self.temperature = temperature
+
+    def post_batch(
+            self,
+            model_manager,
+            batch,
+            loss: torch.Tensor
+    ):
+        """
+        """
+        model = model_manager.gnn
+        logits = model(batch)
+        soft_targets = torch.softmax(logits / self.temperature, dim=1)
+        distillation_loss = torch.nn.functional.kl_div(
+            torch.log_softmax(logits / self.temperature, dim=1),
+            soft_targets,
+            reduction='batchmean'
+        ) * (self.temperature ** 2)
+        modified_loss = loss + distillation_loss
+        return {"loss": modified_loss}
 
 
 class AdvTraining(

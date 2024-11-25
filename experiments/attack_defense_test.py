@@ -173,7 +173,7 @@ def test_attack_defense():
         _import_path=EVASION_ATTACK_PARAMETERS_PATH,
         _config_class="EvasionAttackConfig",
         _config_kwargs={
-            "epsilon": 0.01 * 1,
+            "epsilon": 0.001 * 12,
         }
     )
 
@@ -223,6 +223,15 @@ def test_attack_defense():
         }
     )
 
+    distillation_evasion_defense_config = ConfigPattern(
+        _class_name="DistillationDefender",
+        _import_path=EVASION_DEFENSE_PARAMETERS_PATH,
+        _config_class="EvasionDefenseConfig",
+        _config_kwargs={
+            "temperature": 0.5 * 20
+        }
+    )
+
     fgsm_evasion_attack_config0 = ConfigPattern(
         _class_name="FGSM",
         _import_path=EVASION_ATTACK_PARAMETERS_PATH,
@@ -244,7 +253,7 @@ def test_attack_defense():
     # gnn_model_manager.set_poison_attacker(poison_attack_config=random_poison_attack_config)
     # gnn_model_manager.set_poison_defender(poison_defense_config=gnnguard_poison_defense_config)
     gnn_model_manager.set_evasion_attacker(evasion_attack_config=fgsm_evasion_attack_config)
-    gnn_model_manager.set_evasion_defender(evasion_defense_config=gradientregularization_evasion_defense_config)
+    gnn_model_manager.set_evasion_defender(evasion_defense_config=distillation_evasion_defense_config)
 
     warnings.warn("Start training")
     dataset.train_test_split()
