@@ -281,7 +281,7 @@ class AutoEncoderDefender(
             self,
             hidden_dim: int,
             bottleneck_dim: int,
-            reconstruction_loss_weight=0.1,
+            reconstruction_loss_weight: float = 0.1,
     ):
         """
         """
@@ -291,7 +291,12 @@ class AutoEncoderDefender(
         self.bottleneck_dim = bottleneck_dim
         self.reconstruction_loss_weight = reconstruction_loss_weight
 
-    def post_batch(self, model_manager, batch, loss):
+    def post_batch(
+            self,
+            model_manager,
+            batch,
+            loss: torch.Tensor
+    ) -> dict:
         """
         """
         model_manager.gnn.eval()
@@ -307,7 +312,10 @@ class AutoEncoderDefender(
         autoencoder_optimizer.step()
         return {"loss": modified_loss}
 
-    def denoise_with_autoencoder(self, x):
+    def denoise_with_autoencoder(
+            self,
+            x: torch.Tensor
+    ) -> torch.Tensor:
         """
         """
         self.autoencoder.eval()
@@ -317,12 +325,11 @@ class AutoEncoderDefender(
 
     def init_autoencoder(
             self,
-            x
-    ):
+            x: torch.Tensor
+    ) -> None:
         self.autoencoder = SimpleAutoEncoder(
             input_dim=x.shape[1],
             bottleneck_dim=self.bottleneck_dim,
             hidden_dim=self.hidden_dim,
             device=x.device
         )
-
