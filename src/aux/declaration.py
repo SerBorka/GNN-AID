@@ -1,5 +1,7 @@
 import json
+from typing import Union, Type
 
+from aux.configs import DatasetConfig, DatasetVarConfig
 from aux.utils import MODELS_DIR, GRAPHS_DIR, EXPLANATIONS_DIR, hash_data_sha256, \
     SAVE_DIR_STRUCTURE_PATH
 import os
@@ -12,7 +14,11 @@ class Declare:
     """
 
     @staticmethod
-    def obj_info_to_path(what_save=None, previous_path=None, obj_info=None):
+    def obj_info_to_path(
+            what_save: str = None,
+            previous_path: Union[str, Path] = None,
+            obj_info: Union[None, list, tuple, dict] = None
+    ) -> [Path, list]:
         """
         :param what_save: the path for which object is being built.
          Now support: data_root, data_prepared, models, explanations
@@ -87,7 +93,9 @@ class Declare:
         return path, files_paths
 
     @staticmethod
-    def dataset_root_dir(dataset_config):
+    def dataset_root_dir(
+            dataset_config: DatasetConfig
+    ) -> [Path, list]:
         """
         :param dataset_config: DatasetConfig
         :return: forms the path to the data folder and adds to it the path to a specific dataset
@@ -99,7 +107,10 @@ class Declare:
         return path, files_paths
 
     @staticmethod
-    def dataset_prepared_dir(dataset_config, dataset_var_config):
+    def dataset_prepared_dir(
+            dataset_config: DatasetConfig,
+            dataset_var_config: DatasetVarConfig
+    ) -> [Path, list]:
         """
         :param dataset_config: DatasetConfig
         :param dataset_var_config: DatasetVarConfig
@@ -128,7 +139,9 @@ class Declare:
         return path, files_paths
 
     @staticmethod
-    def models_path(class_obj):
+    def models_path(
+            class_obj: Type
+    ) -> [Path, list]:
         """
         :param class_obj: class base on GNNModelManager
         :return: The path where the model will be saved
@@ -189,8 +202,8 @@ class Declare:
             mi_attack_hash: str,
             evasion_attack_hash: str,
             poison_attack_hash: str,
-            epochs=None,
-    ):
+            epochs: Union[int, str] = None,
+    ) -> [Path, list]:
         """
         Formation of the way to save the path of the model in the root of the project
         according to its hyperparameters and features
@@ -199,6 +212,12 @@ class Declare:
         :param model_ver_ind: index of explain version
         :param gnn_name: gnn hash
         :param epochs: number of epochs during which the model was trained
+        :param mi_defense_hash:
+        :param evasion_defense_hash:
+        :param poison_defense_hash:
+        :param mi_attack_hash:
+        :param evasion_attack_hash:
+        :param poison_attack_hash:
         :return: the path where the model is saved use information from ModelConfig
         """
         if not isinstance(model_ver_ind, int) or model_ver_ind < 0:
@@ -223,16 +242,19 @@ class Declare:
         return path, files_paths
 
     @staticmethod
-    def explanation_file_path(models_path: str, explainer_name: str,
-                              explainer_ver_ind: int = None,
-                              explainer_run_kwargs=None, explainer_init_kwargs=None):
+    def explanation_file_path(
+            models_path: str,
+            explainer_name: str,
+            explainer_ver_ind: int = None,
+            explainer_run_kwargs: dict = None,
+            explainer_init_kwargs: dict = None
+    ) -> [Path, list]:
         """
         :param explainer_init_kwargs: dict with kwargs for explainer class
         :param explainer_run_kwargs:dict with kwargs for run explanation
         :param models_path: model path
         :param explainer_name: explainer name. Example: Zorro
         :param explainer_ver_ind: index of explain version
-        :param explainer_attack_type: type of attack on explainer. Now support: original
         :return: path for explanations result file and list with technical files
         """
         explainer_init_kwargs = explainer_init_kwargs.copy()
@@ -279,7 +301,10 @@ class Declare:
         return path, files_paths
 
     @staticmethod
-    def explainer_kwargs_path_full(model_path, explainer_path):
+    def explainer_kwargs_path_full(
+            model_path: Union[str, Path],
+            explainer_path: Union[str, Path]
+    ) -> list:
         """
         :param model_path: model path
         :param explainer_path: explanation path
@@ -287,6 +312,7 @@ class Declare:
         """
         path = Path(str(model_path).replace(str(MODELS_DIR), str(EXPLANATIONS_DIR)))
         what_save = "explanations"
+        # BUG Misha, check is correct next line, because in def obj_info_to_path can't be Path or str
         obj_info = explainer_path
 
         _, files_paths = Declare.obj_info_to_path(what_save=what_save, previous_path=path,

@@ -1,11 +1,14 @@
 import json
 import os
 from pathlib import Path
+from typing import Union, Type
+
 import torch
+import torch_geometric
 from torch import default_generator, randperm
 from torch_geometric.data import Dataset, InMemoryDataset
 
-from aux.configs import DatasetConfig, DatasetVarConfig
+from aux.configs import DatasetConfig, DatasetVarConfig, ConfigPattern
 from aux.custom_decorators import timing_decorator
 from aux.declaration import Declare
 from aux.utils import TORCH_GEOM_GRAPHS_PATH
@@ -17,7 +20,9 @@ class DatasetInfo:
     Some fields are obligate, others are not.
     """
 
-    def __init__(self):
+    def __init__(
+            self
+    ):
         self.name: str = ""
         self.count: int = None
         self.directed: bool = None
@@ -35,7 +40,9 @@ class DatasetInfo:
         self.edge_info: dict = {}
         self.graph_info: dict = {}
 
-    def check_validity(self):
+    def check_validity(
+            self
+    ) -> None:
         """ Check existing fields have allowed values. """
         assert self.count > 0
         assert len(self.node_attributes) > 0
@@ -56,7 +63,9 @@ class DatasetInfo:
             assert isinstance(k, str)
             assert isinstance(v, int) and v > 1
 
-    def check_consistency(self):
+    def check_consistency(
+            self
+    ) -> None:
         """ Check existing fields are consistent. """
         assert self.count == len(self.nodes)
         assert len(self.node_attributes["names"]) == len(self.node_attributes["types"]) == len(
@@ -64,13 +73,18 @@ class DatasetInfo:
         assert len(self.edge_attributes["names"]) == len(self.edge_attributes["types"]) == len(
             self.edge_attributes["values"])
 
-    def check_sufficiency(self):
+    def check_sufficiency(
+            self
+    ) -> None:
         """ Check all obligates fields are defined. """
         for attr in self.__dict__.keys():
             if attr is None:
                 raise ValueError(f"Attribute '{attr}' of metainfo should be defined.")
 
-    def check_consistency_with_dataset(self, dataset: Dataset):
+    def check_consistency_with_dataset(
+            self,
+            dataset: Dataset
+    ) -> None:
         """ Check if metainfo fields are consistent with dataset. """
         assert self.count == len(dataset)
         from base.ptg_datasets import is_graph_directed
@@ -80,17 +94,24 @@ class DatasetInfo:
         assert self.node_attributes["types"][0] == "other"
         # TODO check features values range
 
-    def check(self):
+    def check(
+            self
+    ) -> None:
         """ Check metainfo is sufficient, consistent, and valid. """
         self.check_sufficiency()
         self.check_consistency()
         self.check_validity()
 
-    def to_dict(self):
+    def to_dict(
+            self
+    ) -> dict:
         """ Return info as a dictionary. """
         return dict(self.__dict__)
 
-    def save(self, path: Path):
+    def save(
+            self,
+            path: Union[str, Path]
+    ) -> None:
         """ Save into file non-null info. """
         not_nones = {k: v for k, v in self.__dict__.items() if v is not None}
         path.parent.mkdir(exist_ok=True, parents=True)
@@ -98,7 +119,9 @@ class DatasetInfo:
             json.dump(not_nones, f, indent=1)
 
     @staticmethod
-    def induce(dataset: Dataset):
+    def induce(
+            dataset: Dataset
+    ):
         """ Induce metainfo from a given PTG dataset. """
         res = DatasetInfo()
         res.count = len(dataset)
@@ -116,7 +139,9 @@ class DatasetInfo:
         return res
 
     @staticmethod
-    def read(path: Path):
+    def read(
+            path: Union[str, Path]
+    ):
         """ Read info from a file. """
         with path.open('r') as f:
             a_dict = json.load(f)
@@ -128,7 +153,9 @@ class DatasetInfo:
         return res
 
     @staticmethod
-    def node_attributes_to_node_attr_slices(node_attributes):
+    def node_attributes_to_node_attr_slices(
+            node_attributes: dict
+    ) -> dict:
         node_attr_slices = {}
         start_attr_index = 0
         for i in range(len(node_attributes['names'])):
@@ -145,7 +172,12 @@ class DatasetInfo:
 
 
 class VisiblePart:
-    def __init__(self, gen_dataset, center: [int, list] = None, depth: [int] = None):
+    def __init__(
+            self,
+            gen_dataset,
+            center: [int, list] = None,
+            depth: [int] = None
+    ):
         """ Compute a part of dataset specified by a center node/graph and a depth
 
         :param gen_dataset:
@@ -226,10 +258,14 @@ class VisiblePart:
                 self.nodes = gen_dataset.info.nodes[0]
                 self._ixes = list(range(self.nodes))
 
-    def ixes(self):
+    def ixes(
+            self
+    ) -> list:
         return self._ixes
 
-    def as_dict(self):
+    def as_dict(
+            self
+    ) -> dict:
         res = {}
         if self.nodes:
             res['nodes'] = self.nodes
@@ -239,7 +275,10 @@ class VisiblePart:
             res['graphs'] = self.graphs
         return res
 
-    def filter(self, array):
+    def filter(
+            self,
+            array
+    ) -> dict:
         """ Suppose ixes = [2,4]: [a, b, c, d] ->  {2: b, 4: d}
         """
         return {ix: array[ix] for ix in self._ixes}
@@ -249,7 +288,10 @@ class GeneralDataset:
     """ Generalisation of PTG and user-defined datasets: custom, VK, etc.
     """
 
-    def __init__(self, dataset_config: DatasetConfig):
+    def __init__(
+            self,
+            dataset_config: Union[DatasetConfig, ConfigPattern]
+    ):
         """
         Args:
             dataset_config: DatasetConfig dict from frontend
@@ -281,51 +323,71 @@ class GeneralDataset:
         self._labels = None
 
     @property
-    def root_dir(self):
+    def root_dir(
+            self
+    ):
         """ Dataset root directory with folders 'raw' and 'prepared'. """
         # FIXME Misha, dataset_prepared_dir return path and files_paths not only path
         return Declare.dataset_root_dir(self.dataset_config)[0]
 
     @property
-    def results_dir(self):
+    def results_dir(
+            self
+    ):
         """ Path to 'prepared/../' folder where tensor data is stored. """
         # FIXME Misha, dataset_prepared_dir return path and files_paths not only path
         return Path(Declare.dataset_prepared_dir(self.dataset_config, self.dataset_var_config)[0])
 
     @property
-    def raw_dir(self):
+    def raw_dir(
+            self
+    ):
         """ Path to 'raw/' folder where raw data is stored. """
         return self.root_dir / 'raw'
 
     @property
-    def api_path(self):
+    def api_path(
+            self
+    ):
         """ Path to '.api' file. Could be not present. """
         return self.root_dir / '.api'
 
     @property
-    def info_path(self):
+    def info_path(
+            self
+    ):
         """ Path to '.info' file. """
         return self.root_dir / 'raw' / '.info'
 
     @property
-    def stats_dir(self):
+    def stats_dir(
+            self
+    ):
         """ Path to '.stats' directory. """
         return self.root_dir / '.stats'
 
     @property
-    def data(self):
+    def data(
+            self
+    ):
         return self.dataset._data
 
     @property
-    def num_classes(self):
+    def num_classes(
+            self
+    ):
         return self.dataset.num_classes
 
     @property
-    def num_node_features(self):
+    def num_node_features(
+            self
+    ):
         return self.dataset.num_node_features
 
     @property
-    def labels(self):
+    def labels(
+            self
+    ):
         if self._labels is None:
             # NOTE: this is a copy from torch_geometric.data.dataset v=2.3.1
             from torch_geometric.data.dataset import _get_flattened_data_list
@@ -333,22 +395,34 @@ class GeneralDataset:
             self._labels = torch.cat([data.y for data in data_list if 'y' in data], dim=0)
         return self._labels
 
-    def __len__(self):
+    def __len__(
+            self
+    ) -> int:
         return self.info.count
 
-    def domain(self):
+    def domain(
+            self
+    ) -> str:
         return self.dataset_config.domain
 
-    def is_multi(self):
+    def is_multi(
+            self
+    ) -> bool:
         """ Return whether this dataset is multiple-graphs or single-graph. """
         return self.info.count > 1
 
-    def build(self, dataset_var_config: DatasetVarConfig):
+    def build(
+            self,
+            dataset_var_config: Union[ConfigPattern, DatasetVarConfig]
+    ):
         """ Create node feature tensors from attributes based on dataset_var_config.
         """
         raise NotImplementedError()
 
-    def get_dataset_data(self, part=None):
+    def get_dataset_data(
+            self,
+            part: Union[dict, None] = None
+    ) -> dict:
         """ Get DatasetData for specified graphs or nodes
         """
         edges_list = []
@@ -379,7 +453,9 @@ class GeneralDataset:
 
         return res
 
-    def _compute_dataset_data(self):
+    def _compute_dataset_data(
+            self
+    ) -> None:
         num = len(self.dataset)
         data_list = [self.dataset.get(ix) for ix in range(num)]
         is_directed = self.info.directed
@@ -427,13 +503,19 @@ class GeneralDataset:
         # if self.info.name == "":
         #     self.dataset_data['info']['name'] = '/'.join(self.dataset_config.full_name())
 
-    def set_visible_part(self, part: dict):
+    def set_visible_part(
+            self,
+            part: dict
+    ) -> None:
         if self.dataset_data is None:
             self._compute_dataset_data()
 
         self.visible_part = VisiblePart(self, **part)
 
-    def get_dataset_var_data(self, part=None):
+    def get_dataset_var_data(
+            self,
+            part: Union[dict, None] = None
+    ) -> dict:
         """ Get DatasetVarData for specified graphs or nodes
         """
         if self.dataset_var_data is None:
@@ -455,7 +537,9 @@ class GeneralDataset:
 
         return dataset_var_data
 
-    def _compute_dataset_var_data(self):
+    def _compute_dataset_var_data(
+            self
+    ) -> None:
         """ Prepare dataset_var_data for frontend on demand.
         """
         # FIXME version fail in torch-geom 2.3.1
@@ -485,7 +569,10 @@ class GeneralDataset:
                 "labels": labels if self.is_multi() else labels[0],
             }
 
-    def get_stat(self, stat):
+    def get_stat(
+            self,
+            stat
+    ):
         """ Get statistics.
         """
         if stat in self.stats:
@@ -511,7 +598,10 @@ class GeneralDataset:
             json.dump(value, f, ensure_ascii=False)
         return value
 
-    def _compute_stat(self, stat):
+    def _compute_stat(
+            self,
+            stat
+    ):
         """ Compute statistics. """
         if self.is_multi():
             # try:
@@ -608,7 +698,9 @@ class GeneralDataset:
                 value = str(e)
         return value
 
-    def is_one_hot_able(self):
+    def is_one_hot_able(
+            self
+    ) -> bool:
         """ Return whether features are 1-hot encodings. If yes, nodes can be colored.
         """
         assert self.dataset_var_config
@@ -633,12 +725,16 @@ class GeneralDataset:
                     elif features['attr'][attr] == 'other':
                         # Check honestly each feature vector
                         feats = self.dataset_var_data['features']
-                        res = all(all(all(x == 1 or x == 0 for x in f) for f in feat) for feat in feats) and\
+                        res = all(all(all(x == 1 or x == 0 for x in f) for f in feat) for feat in feats) and \
                               all(all(sum(f) == 1 for f in feat) for feat in feats)
 
         return res
 
-    def train_test_split(self, percent_train_class: float = 0.8, percent_test_class: float = 0.2):
+    def train_test_split(
+            self,
+            percent_train_class: float = 0.8,
+            percent_test_class: float = 0.2
+    ) -> None:
         """ Compute train-validation-test split of graphs/nodes. """
         self.percent_train_class = percent_train_class
         self.percent_test_class = percent_test_class
@@ -680,7 +776,10 @@ class GeneralDataset:
         self.dataset.data.test_mask = test_mask
         self.dataset.data.val_mask = val_mask
 
-    def save_train_test_mask(self, path):
+    def save_train_test_mask(
+            self,
+            path: Union[str, Path]
+    ) -> None:
         """ Save current train/test mask to a given path (together with the model). """
         if path is not None:
             path /= 'train_test_split'
@@ -700,7 +799,9 @@ class DatasetManager:
 
     @staticmethod
     def register_torch_geometric_local(
-            dataset: InMemoryDataset, name: str = None) -> GeneralDataset:
+            dataset: InMemoryDataset,
+            name: str = None
+    ) -> GeneralDataset:
         """
         Save a given PTG dataset locally.
         Dataset is then always available for use by its config.
@@ -717,8 +818,10 @@ class DatasetManager:
     # QUE Misha, Kirill - can we use get_by_config always instead of it?
     @staticmethod
     @timing_decorator
-    def get_by_config(dataset_config: DatasetConfig,
-                      dataset_var_config: DatasetVarConfig = None) -> GeneralDataset:
+    def get_by_config(
+            dataset_config: DatasetConfig,
+            dataset_var_config: DatasetVarConfig = None
+    ) -> GeneralDataset:
         """ Get GeneralDataset by dataset config. Used from the frontend.
         """
         dataset_group = dataset_config.group
@@ -743,7 +846,10 @@ class DatasetManager:
 
     @staticmethod
     @timing_decorator
-    def get_by_full_name(full_name=None, **kwargs):
+    def get_by_full_name(
+            full_name=None,
+            **kwargs
+    ) -> [GeneralDataset, torch_geometric.data.Data, Path]:
         """
         Get PTG dataset by its full name tuple.
         Starts the creation of an object from raw data or takes already saved datasets in prepared
@@ -770,8 +876,10 @@ class DatasetManager:
 
     @staticmethod
     def register_torch_geometric_api(
-            dataset: Dataset, name: str = None,
-            obj_name: str = 'DATASET_TO_EXPORT') -> GeneralDataset:
+            dataset: Dataset,
+            name: str = None,
+            obj_name: str = 'DATASET_TO_EXPORT'
+    ) -> GeneralDataset:
         """
         Register a user defined code implementing a PTG dataset.
         This function should be called at each framework run to make the dataset available for use.
@@ -797,7 +905,9 @@ class DatasetManager:
         return gen_dataset
 
     @staticmethod
-    def register_custom_ij(path: Path) -> GeneralDataset:
+    def register_custom_ij(
+            path: Path
+    ) -> GeneralDataset:
         """
         :return: GeneralDataset
         """
@@ -805,8 +915,12 @@ class DatasetManager:
 
     @staticmethod
     def _register_torch_geometric(
-            dataset: Dataset, name=None, group=None,
-            exists_ok=False, copy_data=False) -> GeneralDataset:
+            dataset: Dataset,
+            name: Union[str, None] = None,
+            group: str = None,
+            exists_ok: bool = False,
+            copy_data: bool = False
+    ) -> GeneralDataset:
         """
         Create GeneralDataset from an externally specified torch geometric dataset.
 
@@ -874,7 +988,9 @@ class DatasetManager:
         return gen_dataset
 
 
-def is_in_torch_geometric_datasets(full_name=None):
+def is_in_torch_geometric_datasets(
+        full_name: tuple = None
+) -> bool:
     from aux.prefix_storage import PrefixStorage
     with open(TORCH_GEOM_GRAPHS_PATH, 'r') as f:
         return PrefixStorage.from_json(f.read()).check(full_name)

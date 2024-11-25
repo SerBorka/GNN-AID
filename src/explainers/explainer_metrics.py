@@ -1,10 +1,18 @@
+from typing import Type
+
 import numpy as np
 import torch
 from torch_geometric.utils import subgraph
 
 
 class NodesExplainerMetric:
-    def __init__(self, model, graph, explainer, kwargs_dict):
+    def __init__(
+            self,
+            model: Type,
+            graph,
+            explainer,
+            kwargs_dict: dict
+    ):
         self.model = model
         self.explainer = explainer
         self.graph = graph
@@ -21,7 +29,10 @@ class NodesExplainerMetric:
         self.dictionary = {
         }
 
-    def evaluate(self, target_nodes_indices):
+    def evaluate(
+            self,
+            target_nodes_indices: list
+    ) -> dict:
         num_targets = len(target_nodes_indices)
         sparsity = 0
         stability = 0
@@ -46,7 +57,10 @@ class NodesExplainerMetric:
         self.dictionary["fidelity"] = fidelity
         return self.dictionary
 
-    def calculate_fidelity(self, target_nodes_indices):
+    def calculate_fidelity(
+            self,
+            target_nodes_indices: list
+    ) -> float:
         original_answer = self.model.get_answer(self.x, self.edge_index)
         same_answers_count = 0
         for node_ind in target_nodes_indices:
@@ -62,7 +76,10 @@ class NodesExplainerMetric:
         fidelity = same_answers_count / len(target_nodes_indices)
         return fidelity
 
-    def calculate_sparsity(self, node_ind):
+    def calculate_sparsity(
+            self,
+            node_ind: int
+    ) -> float:
         explanation = self.get_explanation(node_ind)
         sparsity = 1 - (len(explanation["data"]["nodes"]) + len(explanation["data"]["edges"])) / (
                 len(self.x) + len(self.edge_index))
@@ -70,11 +87,11 @@ class NodesExplainerMetric:
 
     def calculate_stability(
             self,
-            node_ind,
-            graph_perturbations_nums=10,
-            feature_change_percent=0.05,
-            node_removal_percent=0.05
-    ):
+            node_ind: int,
+            graph_perturbations_nums: int = 10,
+            feature_change_percent: float = 0.05,
+            node_removal_percent: float = 0.05
+    ) -> float:
         base_explanation = self.get_explanation(node_ind)
         stability = 0
         for _ in range(graph_perturbations_nums):
@@ -90,7 +107,11 @@ class NodesExplainerMetric:
         stability = stability / graph_perturbations_nums
         return stability
 
-    def calculate_consistency(self, node_ind, num_explanation_runs=10):
+    def calculate_consistency(
+            self,
+            node_ind: int,
+            num_explanation_runs: int = 10
+    ) -> float:
         explanation = self.get_explanation(node_ind)
         consistency = 0
         for _ in range(num_explanation_runs):
@@ -103,13 +124,22 @@ class NodesExplainerMetric:
         consistency = consistency / num_explanation_runs
         return consistency
 
-    def calculate_explanation(self, x, edge_index, node_idx, **kwargs):
+    def calculate_explanation(
+            self,
+            x: torch.Tensor,
+            edge_index: torch.Tensor,
+            node_idx: int,
+            **kwargs
+    ):
         print(f"Processing explanation calculation for node id {node_idx}.")
         self.explainer.evaluate_tensor_graph(x, edge_index, node_idx, **kwargs)
         print(f"Explanation calculation for node id {node_idx} completed.")
         return self.explainer.explanation.dictionary
 
-    def get_explanation(self, node_ind):
+    def get_explanation(
+            self,
+            node_ind: int
+    ):
         if node_ind in self.nodes_explanations:
             node_explanation = self.nodes_explanations[node_ind]
         else:
@@ -118,7 +148,9 @@ class NodesExplainerMetric:
         return node_explanation
 
     @staticmethod
-    def parse_explanation(explanation):
+    def parse_explanation(
+            explanation: dict
+    ) -> [dict, dict]:
         important_nodes = {
             int(node): float(weight) for node, weight in explanation["data"]["nodes"].items()
         }
@@ -129,7 +161,12 @@ class NodesExplainerMetric:
         return important_nodes, important_edges
 
     @staticmethod
-    def filter_graph_by_explanation(x, edge_index, explanation, target_node):
+    def filter_graph_by_explanation(
+            x: torch.Tensor,
+            edge_index: torch.Tensor,
+            explanation: dict,
+            target_node: int
+    ) -> [torch.Tensor, torch.Tensor, int]:
         important_nodes, important_edges = NodesExplainerMetric.parse_explanation(explanation)
         all_important_nodes = set(important_nodes.keys())
         all_important_nodes.add(target_node)
@@ -147,7 +184,10 @@ class NodesExplainerMetric:
         return new_x, new_edge_index, new_target_node
 
     @staticmethod
-    def calculate_explanation_vectors(base_explanation, perturbed_explanation):
+    def calculate_explanation_vectors(
+            base_explanation,
+            perturbed_explanation
+    ):
         base_important_nodes, base_important_edges = NodesExplainerMetric.parse_explanation(
             base_explanation
         )
@@ -171,7 +211,13 @@ class NodesExplainerMetric:
         return base_explanation_vector, perturbed_explanation_vector
 
     @staticmethod
-    def perturb_graph(x, edge_index, node_ind, feature_change_percent, node_removal_percent):
+    def perturb_graph(
+            x: torch.Tensor,
+            edge_index: torch.Tensor,
+            node_ind: int,
+            feature_change_percent: float,
+            node_removal_percent: float
+    ) -> [torch.Tensor, torch.Tensor]:
         new_x = x.clone()
         num_nodes = x.shape[0]
         num_features = x.shape[1]
