@@ -131,7 +131,7 @@ def test_attack_defense():
         _import_path=POISON_ATTACK_PARAMETERS_PATH,
         _config_class="PoisonAttackConfig",
         _config_kwargs={
-            "n_edges_percent": 0.5,
+            "n_edges_percent": 1.0,
         }
     )
 
@@ -210,7 +210,16 @@ def test_attack_defense():
         _import_path=EVASION_DEFENSE_PARAMETERS_PATH,
         _config_class="EvasionDefenseConfig",
         _config_kwargs={
-            "regularization_strength": 0.1 * 10
+            "regularization_strength": 0.1 * 1000
+        }
+    )
+
+    quantization_evasion_defense_config = ConfigPattern(
+        _class_name="QuantizationDefender",
+        _import_path=EVASION_DEFENSE_PARAMETERS_PATH,
+        _config_class="EvasionDefenseConfig",
+        _config_kwargs={
+            "num_levels": 2
         }
     )
 
@@ -234,8 +243,8 @@ def test_attack_defense():
 
     # gnn_model_manager.set_poison_attacker(poison_attack_config=random_poison_attack_config)
     # gnn_model_manager.set_poison_defender(poison_defense_config=gnnguard_poison_defense_config)
-    # gnn_model_manager.set_evasion_attacker(evasion_attack_config=netattackgroup_evasion_attack_config)
-    # gnn_model_manager.set_evasion_defender(evasion_defense_config=at_evasion_defense_config)
+    gnn_model_manager.set_evasion_attacker(evasion_attack_config=fgsm_evasion_attack_config)
+    gnn_model_manager.set_evasion_defender(evasion_defense_config=gradientregularization_evasion_defense_config)
 
     warnings.warn("Start training")
     dataset.train_test_split()

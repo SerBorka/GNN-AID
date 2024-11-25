@@ -54,14 +54,25 @@ class EmptyEvasionDefender(
         pass
 
 
-class GradientRegularizationDefender(EvasionDefender):
+class GradientRegularizationDefender(
+    EvasionDefender
+):
     name = "GradientRegularizationDefender"
 
-    def __init__(self, regularization_strength=0.1):
+    def __init__(
+            self,
+            regularization_strength: float = 0.1
+    ):
         super().__init__()
         self.regularization_strength = regularization_strength
 
-    def post_batch(self, model_manager, batch, loss, **kwargs):
+    def post_batch(
+            self,
+            model_manager,
+            batch,
+            loss: torch.Tensor,
+            **kwargs
+    ) -> dict:
         batch.x.requires_grad = True
         outputs = model_manager.gnn(batch.x, batch.edge_index)
         loss_loc = model_manager.loss_function(outputs, batch.y)
@@ -69,10 +80,10 @@ class GradientRegularizationDefender(EvasionDefender):
                                         grad_outputs=torch.ones_like(loss_loc),
                                         create_graph=True, retain_graph=True, only_inputs=True)[0]
         gradient_penalty = torch.sum(gradients ** 2)
+        batch.x.requires_grad = False
         return {"loss": loss + self.regularization_strength * gradient_penalty}
 
 
-# TODO Kirill, add code in pre_batch
 class QuantizationDefender(
     EvasionDefender
 ):
@@ -80,17 +91,31 @@ class QuantizationDefender(
 
     def __init__(
             self,
-            qbit: int = 8
+            num_levels: int = 32
     ):
         super().__init__()
-        self.regularization_strength = qbit
+        self.num_levels = num_levels
 
     def pre_batch(
             self,
+            model_manager,
+            batch,
             **kwargs
     ):
-        # TODO Kirill
-        pass
+        x = batch.x
+        batch.x = self.quantize(x)
+        return batch
+
+    def quantize(
+            self,
+            x
+    ):
+        x_min = x.min()
+        x_max = x.max()
+        x_normalized = (x - x_min) / (x_max - x_min)
+        x_quantized = torch.round(x_normalized * (self.num_levels - 1)) / (self.num_levels - 1)
+        x_quantized = x_quantized * (x_max - x_min) + x_min
+        return x_quantized
 
 
 class AdvTraining(
@@ -104,10 +129,8 @@ class AdvTraining(
             attack_name: str = None,
             attack_config: EvasionAttackConfig = None,
             attack_type: str = None,
-            device: str = 'cpu'
     ):
         super().__init__()
-        assert device is not None, "Please specify 'device'!"
         if not attack_config:
             # build default config
             assert attack_name is not None
