@@ -234,3 +234,95 @@ class AdvTraining(
         outputs = model_manager.gnn(self.perturbed_gen_dataset.data.x, self.perturbed_gen_dataset.data.edge_index)
         loss_loc = model_manager.loss_function(outputs, batch.y)
         return {"loss": loss + loss_loc}
+
+
+class SimpleAutoEncoder(
+    torch.nn.Module
+):
+    def __init__(
+            self,
+            input_dim: int,
+            hidden_dim: int,
+            bottleneck_dim: int,
+            device: str = 'cpu'
+    ):
+        """
+        """
+        super(SimpleAutoEncoder, self).__init__()
+        self.device = device
+        self.encoder = torch.nn.Sequential(
+            torch.nn.Linear(input_dim, hidden_dim),
+            torch.nn.ReLU(),
+            torch.nn.Linear(hidden_dim, bottleneck_dim),
+            torch.nn.ReLU()
+        ).to(self.device)
+        self.decoder = torch.nn.Sequential(
+            torch.nn.Linear(bottleneck_dim, hidden_dim),
+            torch.nn.ReLU(),
+            torch.nn.Linear(hidden_dim, input_dim)
+        ).to(self.device)
+
+    def forward(
+            self,
+            x: torch.Tensor
+    ):
+        x = x.to(self.device)
+        encoded = self.encoder(x)
+        decoded = self.decoder(encoded)
+        return decoded
+
+
+class AutoEncoderDefender(
+    EvasionDefender
+):
+    name = "AutoEncoderDefender"
+
+    def __init__(
+            self,
+            hidden_dim: int,
+            bottleneck_dim: int,
+            reconstruction_loss_weight=0.1,
+    ):
+        """
+        """
+        super().__init__()
+        self.autoencoder = None
+        self.hidden_dim = hidden_dim
+        self.bottleneck_dim = bottleneck_dim
+        self.reconstruction_loss_weight = reconstruction_loss_weight
+
+    def post_batch(self, model_manager, batch, loss):
+        """
+        """
+        model_manager.gnn.eval()
+        if self.autoencoder is None:
+            self.init_autoencoder(batch.x)
+        self.autoencoder.train()
+        reconstructed_x = self.autoencoder(batch.x)
+        reconstruction_loss = torch.nn.functional.mse_loss(reconstructed_x, batch.x)
+        modified_loss = loss + self.reconstruction_loss_weight * reconstruction_loss.detach().clone()
+        autoencoder_optimizer = torch.optim.Adam(self.autoencoder.parameters(), lr=0.001)
+        autoencoder_optimizer.zero_grad()
+        reconstruction_loss.backward()
+        autoencoder_optimizer.step()
+        return {"loss": modified_loss}
+
+    def denoise_with_autoencoder(self, x):
+        """
+        """
+        self.autoencoder.eval()
+        with torch.no_grad():
+            x_denoised = self.autoencoder(x)
+        return x_denoised
+
+    def init_autoencoder(
+            self,
+            x
+    ):
+        self.autoencoder = SimpleAutoEncoder(
+            input_dim=x.shape[1],
+            bottleneck_dim=self.bottleneck_dim,
+            hidden_dim=self.hidden_dim,
+            device=x.device
+        )
+

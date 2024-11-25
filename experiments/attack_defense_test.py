@@ -232,6 +232,17 @@ def test_attack_defense():
         }
     )
 
+    autoencoder_evasion_defense_config = ConfigPattern(
+        _class_name="AutoEncoderDefender",
+        _import_path=EVASION_DEFENSE_PARAMETERS_PATH,
+        _config_class="EvasionDefenseConfig",
+        _config_kwargs={
+            "hidden_dim": 300,
+            "bottleneck_dim": 100,
+            "reconstruction_loss_weight": 0.1,
+        }
+    )
+
     fgsm_evasion_attack_config0 = ConfigPattern(
         _class_name="FGSM",
         _import_path=EVASION_ATTACK_PARAMETERS_PATH,
@@ -253,7 +264,7 @@ def test_attack_defense():
     # gnn_model_manager.set_poison_attacker(poison_attack_config=random_poison_attack_config)
     # gnn_model_manager.set_poison_defender(poison_defense_config=gnnguard_poison_defense_config)
     gnn_model_manager.set_evasion_attacker(evasion_attack_config=fgsm_evasion_attack_config)
-    gnn_model_manager.set_evasion_defender(evasion_defense_config=distillation_evasion_defense_config)
+    gnn_model_manager.set_evasion_defender(evasion_defense_config=autoencoder_evasion_defense_config)
 
     warnings.warn("Start training")
     dataset.train_test_split()
