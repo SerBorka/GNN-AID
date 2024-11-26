@@ -131,7 +131,7 @@ def test_attack_defense():
         _import_path=POISON_ATTACK_PARAMETERS_PATH,
         _config_class="PoisonAttackConfig",
         _config_kwargs={
-            "n_edges_percent": 0.5,
+            "n_edges_percent": 1.0,
         }
     )
 
@@ -173,7 +173,7 @@ def test_attack_defense():
         _import_path=EVASION_ATTACK_PARAMETERS_PATH,
         _config_class="EvasionAttackConfig",
         _config_kwargs={
-            "epsilon": 0.01 * 1,
+            "epsilon": 0.001 * 12,
         }
     )
 
@@ -210,7 +210,36 @@ def test_attack_defense():
         _import_path=EVASION_DEFENSE_PARAMETERS_PATH,
         _config_class="EvasionDefenseConfig",
         _config_kwargs={
-            "regularization_strength": 0.1 * 10
+            "regularization_strength": 0.1 * 1000
+        }
+    )
+
+    quantization_evasion_defense_config = ConfigPattern(
+        _class_name="QuantizationDefender",
+        _import_path=EVASION_DEFENSE_PARAMETERS_PATH,
+        _config_class="EvasionDefenseConfig",
+        _config_kwargs={
+            "num_levels": 2
+        }
+    )
+
+    distillation_evasion_defense_config = ConfigPattern(
+        _class_name="DistillationDefender",
+        _import_path=EVASION_DEFENSE_PARAMETERS_PATH,
+        _config_class="EvasionDefenseConfig",
+        _config_kwargs={
+            "temperature": 0.5 * 20
+        }
+    )
+
+    autoencoder_evasion_defense_config = ConfigPattern(
+        _class_name="AutoEncoderDefender",
+        _import_path=EVASION_DEFENSE_PARAMETERS_PATH,
+        _config_class="EvasionDefenseConfig",
+        _config_kwargs={
+            "hidden_dim": 300,
+            "bottleneck_dim": 100,
+            "reconstruction_loss_weight": 0.1,
         }
     )
 
@@ -234,8 +263,8 @@ def test_attack_defense():
 
     # gnn_model_manager.set_poison_attacker(poison_attack_config=random_poison_attack_config)
     # gnn_model_manager.set_poison_defender(poison_defense_config=gnnguard_poison_defense_config)
-    # gnn_model_manager.set_evasion_attacker(evasion_attack_config=netattackgroup_evasion_attack_config)
-    # gnn_model_manager.set_evasion_defender(evasion_defense_config=at_evasion_defense_config)
+    gnn_model_manager.set_evasion_attacker(evasion_attack_config=fgsm_evasion_attack_config)
+    gnn_model_manager.set_evasion_defender(evasion_defense_config=autoencoder_evasion_defense_config)
 
     warnings.warn("Start training")
     dataset.train_test_split()

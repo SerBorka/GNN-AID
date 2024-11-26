@@ -617,17 +617,35 @@ class FrameworkGNNConstructor(
                 edge_weight = kwargs.get('edge_weight', None)
                 if batch is None:
                     batch = torch.zeros(kwargs['x'].shape[0], dtype=torch.int64, device=x.device)
-            elif len(args) == 2:
-                x, edge_index = args[0], args[1]
-                batch = torch.zeros(args[0].shape[0], dtype=torch.int64, device=x.device)
-                edge_weight = None
-            elif len(args) == 3:
-                x, edge_index, batch = args[0], args[1], args[2]
-                edge_weight = None
-            elif len(args) == 4:
-                x, edge_index, batch, edge_weight = args[0], args[1], args[2], args[3]
             else:
-                raise ValueError(f"forward's args should take 2 or 3 arguments but got {len(args)}")
+                if len(args) == 1:
+                    args = args[0]
+                    if 'x' in args and 'edge_index' in args:
+                        x, edge_index = args.x, args.edge_index
+                    else:
+                        raise ValueError(f"forward's args should contain x and 3"
+                                         f" edge_index Tensors but {args.keys} doesn't content this Tensors")
+                    if 'batch' in args:
+                        batch = args.batch
+                    else:
+                        batch = torch.zeros(args.x.shape[0], dtype=torch.int64, device=x.device)
+                    if 'edge_weight' in args:
+                        edge_weight = args.edge_weight
+                    else:
+                        edge_weight = None
+                else:
+                    if len(args) == 2:
+                        x, edge_index = args[0], args[1]
+                        batch = torch.zeros(args[0].shape[0], dtype=torch.int64, device=x.device)
+                        edge_weight = None
+                    elif len(args) == 3:
+                        x, edge_index, batch = args[0], args[1], args[2]
+                        edge_weight = None
+                    elif len(args) == 4:
+                        x, edge_index, batch, edge_weight = args[0], args[1], args[2], args[3]
+                    else:
+                        raise ValueError(f"forward's args should take 2 or 3 arguments but got {len(args)}")
+
         else:
             if hasattr(data, "edge_weight"):
                 x, edge_index, batch, edge_weight = data.x, data.edge_index, data.batch, data.edge_weight
