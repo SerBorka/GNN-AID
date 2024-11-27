@@ -60,7 +60,7 @@ def test_attack_defense():
 
     # print(data.train_mask)
 
-    gnn = model_configs_zoo(dataset=dataset, model_name='gcn_gcn')
+    gnn = model_configs_zoo(dataset=dataset, model_name='gat_gcn_sage_gcn_gcn')
     # gnn = model_configs_zoo(dataset=dataset, model_name='gcn_gcn_lin')
     # gnn = model_configs_zoo(dataset=dataset, model_name='test_gnn')
     # gnn = model_configs_zoo(dataset=dataset, model_name='gin_gin_gin_lin_lin')

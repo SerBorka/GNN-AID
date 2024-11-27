@@ -183,7 +183,7 @@ def model_configs_zoo(
                             }
                         },
                         'activation': {
-                            'activation_name': 'ReLU',
+                            'activation_name': 'LeakyReLU',
                             'activation_kwargs': {
                                 "negative_slope": 0.01
                             },
@@ -196,11 +196,11 @@ def model_configs_zoo(
                             'layer_name': 'GCNConv',
                             'layer_kwargs': {
                                 'in_channels': 48,
-                                'out_channels': dataset.num_classes,
+                                'out_channels': 16,
                             },
                         },
                         'activation': {
-                            'activation_name': 'LeakyReLU',
+                            'activation_name': 'ReLU',
                             'activation_kwargs': None,
                         },
                     },
@@ -210,7 +210,7 @@ def model_configs_zoo(
                         'layer': {
                             'layer_name': 'SAGEConv',
                             'layer_kwargs': {
-                                'in_channels': dataset.num_node_features,
+                                'in_channels': 16,
                                 'out_channels': 16,
                             },
                         },
@@ -231,7 +231,7 @@ def model_configs_zoo(
                         'layer': {
                             'layer_name': 'GCNConv',
                             'layer_kwargs': {
-                                'in_channels': dataset.num_node_features,
+                                'in_channels': 16,
                                 'out_channels': 16,
                             },
                         },
@@ -246,8 +246,8 @@ def model_configs_zoo(
                         'layer': {
                             'layer_name': 'GCNConv',
                             'layer_kwargs': {
-                                'in_channels': dataset.num_node_features,
-                                'out_channels': 16,
+                                'in_channels': 16,
+                                'out_channels': dataset.num_classes,
                             },
                         },
                         'activation': {
