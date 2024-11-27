@@ -161,6 +161,105 @@ def model_configs_zoo(
         )
     )
 
+    gat_gcn_sage_gcn_gcn = FrameworkGNNConstructor(
+        model_config=ModelConfig(
+            structure=ModelStructureConfig(
+                [
+                    {
+                        'label': 'n',
+                        'layer': {
+                            'layer_name': 'GATConv',
+                            'layer_kwargs': {
+                                'in_channels': dataset.num_node_features,
+                                'out_channels': 16,
+                                'heads': 3,
+                            },
+                        },
+                        'batchNorm': {
+                            'batchNorm_name': 'BatchNorm1d',
+                            'batchNorm_kwargs': {
+                                'num_features': 48,
+                                'eps': 1e-05,
+                            }
+                        },
+                        'activation': {
+                            'activation_name': 'ReLU',
+                            'activation_kwargs': {
+                                "negative_slope": 0.01
+                            },
+                        },
+                    },
+
+                    {
+                        'label': 'n',
+                        'layer': {
+                            'layer_name': 'GCNConv',
+                            'layer_kwargs': {
+                                'in_channels': 48,
+                                'out_channels': dataset.num_classes,
+                            },
+                        },
+                        'activation': {
+                            'activation_name': 'LeakyReLU',
+                            'activation_kwargs': None,
+                        },
+                    },
+
+                    {
+                        'label': 'n',
+                        'layer': {
+                            'layer_name': 'SAGEConv',
+                            'layer_kwargs': {
+                                'in_channels': dataset.num_node_features,
+                                'out_channels': 16,
+                            },
+                        },
+                        'activation': {
+                            'activation_name': 'Tanh',
+                            'activation_kwargs': None,
+                        },
+                        'dropout': {
+                            'dropout_name': 'Dropout',
+                            'dropout_kwargs': {
+                                'p': 0.5,
+                            }
+                        }
+                    },
+
+                    {
+                        'label': 'n',
+                        'layer': {
+                            'layer_name': 'GCNConv',
+                            'layer_kwargs': {
+                                'in_channels': dataset.num_node_features,
+                                'out_channels': 16,
+                            },
+                        },
+                        'activation': {
+                            'activation_name': 'Sigmoid',
+                            'activation_kwargs': None,
+                        },
+                    },
+
+                    {
+                        'label': 'n',
+                        'layer': {
+                            'layer_name': 'GCNConv',
+                            'layer_kwargs': {
+                                'in_channels': dataset.num_node_features,
+                                'out_channels': 16,
+                            },
+                        },
+                        'activation': {
+                            'activation_name': 'LogSoftmax',
+                            'activation_kwargs': None,
+                        },
+                    },
+                ]
+            )
+        )
+    )
+
     test_gnn = FrameworkGNNConstructor(
         model_config=ModelConfig(
             structure=ModelStructureConfig(
