@@ -1,11 +1,15 @@
 class PanelDatasetView extends PanelView {
     constructor($div, requestBlock, listenBlocks) {
         super($div, requestBlock, listenBlocks)
+        this.$infoDiv = null
+        this.$statsDiv = null
+        this.$varStatsDiv = null
 
         this.init()
 
         // Variables
         this.datasetInfo = null
+        this.labeling = null
     }
 
     init() {
@@ -21,27 +25,49 @@ class PanelDatasetView extends PanelView {
         }
     }
 
-    onSubmit(block, data) {
-        // Do nothing
+    onUnlock(block) {
+        super.onUnlock(block)
+        if (block === "dvc") {
+            this.labeling = null
+            this.$varStatsDiv.empty()
+        }
     }
 
-    addNumericStat(name, stat, fracFlag) {
+    onSubmit(block, data) {
+        // No super call
+        if (block === "dvc") {
+            this.labeling = data[0]
+            this.updateVar()
+        }
+    }
+
+    /// Called at each submit
+    addNumericStat($whereDiv, name, stat, fracFlag) {
         let $div = $("<div></div>")
-        this.$body.append($div)
+        $whereDiv.append($div)
         let $button = $("<button></button>").text("get")
         $div.append(name + ': ')
         $div.append($button)
         $button.click(async () => {
             $button.prop("disabled", true)
             let res = await Controller.ajaxRequest('/dataset', {get: "stat", stat: stat})
+            // console.log(res)
             $div.empty()
-            $div.append(name + ': ' + (fracFlag ? parseFloat(res).toFixed(4) : res))
+            if (res.constructor === Object) { // dict
+                let str = ""
+                for (let [k, v] of Object.entries(res)) {
+                    str += '<div>' + k + ': ' + (fracFlag ? parseFloat(v).toFixed(4) : v) + '</div>'
+                }
+                $div.append(name + ': ' + str)
+            }
+            else
+                $div.append(name + ': ' + (fracFlag ? parseFloat(res).toFixed(4) : res))
         })
     }
 
-    plotDistribution(name, st, txt, lbl, oX, oY) {
+    plotDistribution($div, name, st, lbl, oX, oY, dictFlag) {
         let $ddDiv = $("<div></div>")
-        this.$body.append($ddDiv)
+        $div.append($ddDiv)
         let $button = $("<button></button>").text("get")
         $ddDiv.append(name + ': ')
         $ddDiv.append($button)
@@ -50,69 +76,73 @@ class PanelDatasetView extends PanelView {
             let data = await Controller.ajaxRequest('/dataset', {get: "stat",stat: st})
             // console.log(data)
             $ddDiv.empty()
-            let scale = 'linear'
-            let type = 'bar'
-            if (Object.keys(data).length > 20) {
-                scale = 'logarithmic'
-                type = 'scatter'
-                delete data[0]
-            }
-            let $canvas = $("<canvas></canvas>").css("height", "300px")
-            $ddDiv.append($canvas)
-            const ctx = $canvas[0].getContext('2d')
-            new Chart(ctx, {
-                type: type,
-                data: {
-                    datasets: [{
-                        label: lbl,
-                        data: data,
-                        backgroundColor: 'rgb(52, 132, 246, 0.6)',
-                        // borderColor: borderColor,
-                        borderWidth: 1,
-                        barPercentage: 1,
-                        categoryPercentage: 1,
-                        borderRadius: 0,
-                    }]
-                },
-                options: {
-                    // responsive: false,
-                    // maintainAspectRatio: true,
-                    // aspectRatio: 3,
-                    scales: {
-                        x: {
-                            type: scale,
-                            beginAtZero: false,
-                            // offset: false,
-                            // grid: {
-                            //     offset: false
-                            // },
-                            ticks: {stepSize: 1},
-                            title: {
-                                display: true,
-                                text: oX,
-                                font: {size: 14}
-                            }
-                        },
-                        y: {
-                            type: scale,
-                            suggestedMin: 1,
-                            title: {
-                                display: true,
-                                text: oY,
-                                font: {size: 14}
-                            }
-                        }
-                    },
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: name,
-                            font: {size: 16}
-                        },
-                        legend: {display: false},
-                    }
+            if (!dictFlag)
+                data = {"": data}
+            for (let [k, v] of Object.entries(data)) {
+                let scale = 'linear'
+                let type = 'bar'
+                if (Object.keys(v).length > 20) {
+                    scale = 'logarithmic'
+                    type = 'scatter'
+                    delete v[0]
                 }
-            })
+                let $canvas = $("<canvas></canvas>").css("height", "300px")
+                $ddDiv.append($canvas)
+                const ctx = $canvas[0].getContext('2d')
+                new Chart(ctx, {
+                    type: type,
+                    data: {
+                        datasets: [{
+                            label: lbl,
+                            data: v,
+                            backgroundColor: 'rgb(52, 132, 246, 0.6)',
+                            // borderColor: borderColor,
+                            borderWidth: 1,
+                            barPercentage: 1,
+                            categoryPercentage: 1,
+                            borderRadius: 0,
+                        }]
+                    },
+                    options: {
+                        // responsive: false,
+                        // maintainAspectRatio: true,
+                        // aspectRatio: 3,
+                        scales: {
+                            x: {
+                                type: scale,
+                                beginAtZero: false,
+                                // offset: false,
+                                // grid: {
+                                //     offset: false
+                                // },
+                                ticks: {stepSize: 1},
+                                title: {
+                                    display: true,
+                                    text: oX,
+                                    font: {size: 14}
+                                }
+                            },
+                            y: {
+                                type: scale,
+                                suggestedMin: 1,
+                                title: {
+                                    display: true,
+                                    text: oY,
+                                    font: {size: 14}
+                                }
+                            }
+                        },
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: k + ' ' + name,
+                                font: {size: 16}
+                            },
+                            legend: {display: false},
+                        }
+                    }
+                })
+            }
         })
     }
 
@@ -151,62 +181,61 @@ class PanelDatasetView extends PanelView {
     // Update a dataset info panel
     update() {
         this._collapse(false)
-        // this.updateArgs = arguments
-        // if (this.collapsed) {
-        //     return
-        // }
-        // if (dataset === this.dataset) return
 
-        // this.dataset = dataset
+        this.$infoDiv = $("<div></div>")
+        this.$statsDiv = $("<div></div>")
+        this.$varStatsDiv = $("<div></div>")
         this.$body.empty()
+        this.$body.append(this.$infoDiv)
+        this.$body.append(this.$statsDiv)
+        this.$body.append(this.$varStatsDiv)
 
         if (this.datasetInfo == null) {
-            this.$body.append('No dataset specified')
+            this.$infoDiv.append('No dataset specified')
             return
         }
 
         // Info
         let html = '<u><b>Info</b></u>'
         html += '<br>' + this.getInfo()
-        this.$body.append(html)
+        this.$infoDiv.append(html)
 
         // Stats
         let multi = this.datasetInfo.count > 1
-        this.$body.append('<u><b>Statistics</b></u><br>')
+        this.$statsDiv.append('<u><b>Degree statistics</b></u><br>')
 
         if (multi) {
-            this.$body.append('Graphs: ' + this.datasetInfo.count + '<br>')
-            this.$body.append('Nodes: ' + Math.min(...this.datasetInfo.nodes)
+            this.$statsDiv.append('Graphs: ' + this.datasetInfo.count + '<br>')
+            this.$statsDiv.append('Nodes: ' + Math.min(...this.datasetInfo.nodes)
                 + ' — ' + Math.max(...this.datasetInfo.nodes) + '<br>')
         } else {
-            this.$body.append('Nodes: ' + this.datasetInfo.nodes[0] + '<br>')
+            this.$statsDiv.append('Nodes: ' + this.datasetInfo.nodes[0] + '<br>')
+            this.addNumericStat(this.$statsDiv, "Edges", "num_edges", false)
+            this.addNumericStat(this.$statsDiv, "Average degree", "avg_degree", true)
         }
-        this.addNumericStat("Edges", "num_edges", false)
-        this.addNumericStat("Average degree", "avg_deg", true)
 
         if (!multi) {
-            this.addNumericStat("Clustering", "CC", true)
-            this.addNumericStat("Triangles", "triangles", false)
-            this.addNumericStat("Diameter", "diameter", false)
-            this.addNumericStat("Number of connected components", "cc", false)
-            this.addNumericStat("Largest connected component size", "lcc", false)
-            this.addNumericStat("Degree assortativity", "degree_assortativity", true)
+            this.addNumericStat(this.$statsDiv, "Clustering", "clustering_coeff", true)
+            this.addNumericStat(this.$statsDiv, "Triangles", "num_triangles", false)
+            this.addNumericStat(this.$statsDiv, "Number of connected components", "num_cc", false)
+            this.addNumericStat(this.$statsDiv, "Giant connected component (GCC) size", "gcc_size", false)
+            this.addNumericStat(this.$statsDiv, "GCC relative size (relative size)", "gcc_rel_size", true)
+            this.addNumericStat(this.$statsDiv, "GCC diameter", "gcc_diam", false)
+            // this.addNumericStat(this.$statsDiv, "GCC 90% effective diameter", "gcc_diam90", true)
+            this.addNumericStat(this.$statsDiv, "Degree assortativity", "degree_assort", true)
         }
 
         if (multi) {
-            this.plotDistribution('Distribution of number of nodes', 'num_nodes_distr', 'Maximum nodes: ', 'Number of graphs', 'Nodes',
-                'Number of graphs', multi, false)
-            this.plotDistribution('Distribution of average degree', 'avg_degree_distr', 'Highest average: ', 'Number of graphs',
-                'Average degree', 'Number of graphs', multi, false)
+            this.plotDistribution(this.$statsDiv, 'Distribution of number of nodes', 'num_nodes', 'Number of graphs', 'Nodes', 'Number of graphs', false)
+            this.plotDistribution(this.$statsDiv, 'Distribution of number of edges', 'num_edges', 'Number of graphs', 'Edges', 'Number of graphs', false)
+            // this.plotDistribution(this.$statsDiv, 'Distribution of average degree', 'avg_degree', 'Highest average: ', 'Number of graphs', 'Average degree', 'Number of graphs', false)
         }
         else {
-            this.plotDistribution(
-                'Degree distribution', 'DD', 'Maximum degree: ', 'Degree',
-                'Nodes', 'Degree', multi, true)
+            this.plotDistribution(this.$statsDiv, 'Degree distribution', 'degree_distr', 'Degree', 'Degree', 'Nodes', this.datasetInfo.directed)
 
             let name1 = 'Attributes assortativity'
             let $acDiv = $("<div></div>")
-            this.$body.append($acDiv)
+            this.$statsDiv.append($acDiv)
             let $button1 = $("<button></button>").text("get")
             $acDiv.append(name1 + ': ')
             $acDiv.append($button1)
@@ -264,8 +293,22 @@ class PanelDatasetView extends PanelView {
         }
     }
 
+    // Update a dataset info panel when Var data is known
+    updateVar() {
+        this._collapse(false)
+        this.$varStatsDiv.empty()
+        this.$varStatsDiv.append('<u><b>Variable data statistics</b></u>')
+        let multi = this.datasetInfo.count > 1
+
+        this.plotDistribution(this.$varStatsDiv, 'Labels distribution', 'label_distr', 'Items', 'Class', 'Count', false)
+
+        if (!multi)
+            this.addNumericStat(this.$varStatsDiv,'Labels assortativity', 'label_assort', true)
+    }
+
     break() {
         super.break()
+        this.datasetInfo = null
         this.$body.append("No Dataset selected")
     }
 }

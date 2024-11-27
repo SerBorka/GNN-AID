@@ -263,8 +263,8 @@ class GeneralDataset:
         self.dataset_var_data = None  # features data prepared for frontend
 
         self.name = self.dataset_config.graph  # Last folder name
-        self.stats_dir.mkdir(exist_ok=True, parents=True)
-        self.stats = {}  # dict of {stat -> value}
+        from base.dataset_stats import DatasetStats
+        self.stats = DatasetStats(self)  # dict of {stat -> value}
         self.info: DatasetInfo = None
 
         self.dataset: Dataset = None  # PTG dataset
@@ -306,11 +306,6 @@ class GeneralDataset:
     def info_path(self):
         """ Path to '.info' file. """
         return self.root_dir / 'raw' / '.info'
-
-    @property
-    def stats_dir(self):
-        """ Path to '.stats' directory. """
-        return self.root_dir / '.stats'
 
     @property
     def data(self):
@@ -383,28 +378,30 @@ class GeneralDataset:
         num = len(self.dataset)
         data_list = [self.dataset.get(ix) for ix in range(num)]
         is_directed = self.info.directed
-        #     # FIXME node_attributes must be attributes, features only for ptg dataset!
-        name_type = self.dataset_var_config.features['attr']
-
-        if self.is_multi():
-            edges_list = []
-            self.nodes = []
-            for data in data_list:
-                edges_list.append(data.edge_index.T.tolist())
-                self.nodes.append(len(data.x))
-
-            node_attributes = {
-                list(name_type.keys())[0]: [data.x.tolist() for data in data_list]
-            }
-
-        else:
-            assert len(data_list) == 1
-            data = data_list[0]
-
-            self.nodes = [len(data.x)]
-            node_attributes = {
-                list(name_type.keys())[0]: [data.x.tolist()]
-            }
+        # node_attributes exist for custom datasets.
+        # We can treat them as PTG features but it's not good.
+        node_attributes = {}
+        # name_type = self.dataset_var_config.features['attr']
+        #
+        # if self.is_multi():
+        #     edges_list = []
+        #     self.nodes = []
+        #     for data in data_list:
+        #         edges_list.append(data.edge_index.T.tolist())
+        #         self.nodes.append(len(data.x))
+        #
+        #     node_attributes = {
+        #         list(name_type.keys())[0]: [data.x.tolist() for data in data_list]
+        #     }
+        #
+        # else:
+        #     assert len(data_list) == 1
+        #     data = data_list[0]
+        #
+        #     self.nodes = [len(data.x)]
+        #     node_attributes = {
+        #         list(name_type.keys())[0]: [data.x.tolist()]
+        #     }
 
         edges_list = []
         for data in data_list:
@@ -450,6 +447,7 @@ class GeneralDataset:
         visible_part = self.visible_part if part is None else VisiblePart(self, **part)
 
         for ix in visible_part.ixes():
+            # FIXME replace with getting data from tensors instead of keeping the whole data
             features[ix] = self.dataset_var_data['features'][ix]
             labels[ix] = self.dataset_var_data['labels'][ix]
 
@@ -488,125 +486,13 @@ class GeneralDataset:
     def get_stat(self, stat):
         """ Get statistics.
         """
-        if stat in self.stats:
-            return self.stats[stat]
-
-        # Try to read from file
-        path = self.stats_dir / stat
-        if path.exists():
-            with path.open('r') as f:
-                value = json.load(f)
-            self.stats[stat] = value
-            return value
-
-        # Compute
-        value = self._compute_stat(stat)
-        if value is None:
-            value = f"Statistics '{stat}' is not implemented."
-
-        # Save
-        self.stats[stat] = value
-        path = self.stats_dir / stat
-        with path.open('w') as f:
-            json.dump(value, f, ensure_ascii=False)
-        return value
+        return self.stats.get(stat)
 
     def _compute_stat(self, stat):
-        """ Compute statistics. """
-        if self.is_multi():
-            # try:
-            if stat == 'num_nodes_distr':
-                value = {}
-                for i in self.info.nodes:
-                    if i in value.keys():
-                        value[i] += 1
-                    else:
-                        value[i] = 1
-                return value
-
-            elif stat == 'avg_degree_distr':
-                # TODO check for (un)directed
-                m = self.dataset_data['edges']
-                # FIXME misha can't use dataset_data when partial data is sent to front
-                coeff = 1 if self.info.directed else 2
-                avg = [coeff * len(m[i]) / self.info.nodes[i] for i in range(self.info.count)]
-                value = {}
-                for i in avg:
-                    if i in value.keys():
-                        value[i] += 1
-                    else:
-                        value[i] = 1
-                return value
-
-            elif stat == "num_edges":
-                import numpy as np
-                m = self.dataset_data['edges']
-                # FIXME misha can't use dataset_data when partial data is sent to front
-                coeff = 1 if self.info.directed else 2
-                es = [coeff * len(m[i]) for i in range(self.info.count)]
-                value = f"{np.min(es)} — {np.max(es)}"
-                # value = f"{np.mean(es)} ± {np.var(es)**0.5}"
-                # value = np.mean(es)
-
-            elif stat == "avg_deg":
-                import numpy as np
-                m = self.dataset_data['edges']
-                # FIXME misha can't use dataset_data when partial data is sent to front
-                coeff = 1 if self.info.directed else 2
-                value = np.mean([coeff * len(m[i]) for i in range(self.info.count)])
-
-            else:
-                value = 'Unknown stats'
-            # except (NetworkXError, NetworkXNotImplemented) as e:
-            #     value = str(e)
-
-        else:
-            assert self.info.count == 1
-            import networkx as nx
-            from networkx import NetworkXError, NetworkXNotImplemented
-            # Converting to networkx
-            g = nx.DiGraph() if self.info.directed else nx.Graph()
-            for i, j in self.dataset_data["edges"][0]:
-                g.add_edge(i, j)
-            try:
-                # TODO misha simplify - some stats can be computed easier
-                if stat == "num_edges":
-                    value = g.number_of_edges()
-
-                elif stat == "avg_deg":
-                    value = g.number_of_edges() / g.number_of_nodes()
-                    if not self.info.directed:
-                        value = 2 * value
-
-                elif stat == "CC":
-                    # NOTE this is average local clustering, not global
-                    value = nx.average_clustering(g)
-
-                elif stat == "triangles":
-                    value = int(sum(nx.triangles(g).values()) / 3)
-
-                elif stat == "diameter":
-                    value = nx.diameter(g)
-
-                elif stat == "degree_assortativity":
-                    value = nx.degree_assortativity_coefficient(g)
-
-                elif stat == "cc":
-                    cc = nx.connected_components(g)
-                    value = len(list(cc))
-
-                elif stat == "lcc":
-                    cc = nx.connected_components(g)
-                    value = max(len(c) for c in cc)
-
-                elif stat == "DD":
-                    value = {i: d for i, d in enumerate(nx.degree_histogram(g))}
-
-                else:
-                    value = None
-            except (NetworkXError, NetworkXNotImplemented) as e:
-                value = str(e)
-        return value
+        """ Compute a non-standard statistics.
+        """
+        # Should bw defined in a subclass
+        raise NotImplementedError()
 
     def is_one_hot_able(self):
         """ Return whether features are 1-hot encodings. If yes, nodes can be colored.
