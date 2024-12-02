@@ -108,6 +108,7 @@ def test_attack_defense():
     # data.x = data.x.float()
     gnn_model_manager.gnn.to(my_device)
     data = data.to(my_device)
+    dataset.dataset.data.to(my_device)
 
     # poison_attack_config = ConfigPattern(
     #     _class_name="RandomPoisonAttack",

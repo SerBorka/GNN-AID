@@ -36,6 +36,7 @@ from defense.poison_defense import PoisonDefender
     # def drop_edges(self, batch):
     #     print("KEK")
 
+
 class JaccardDefender(PoisonDefender):
     name = 'JaccardDefender'
 
