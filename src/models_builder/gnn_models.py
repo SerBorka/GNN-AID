@@ -1173,7 +1173,7 @@ class FrameworkGNNModelManager(GNNModelManager):
                 dataset = gen_dataset.dataset
                 part_loader = DataLoader(
                     dataset.index_select(mask), batch_size=self.batch, shuffle=False)
-                full_out = torch.empty(0)
+                full_out = torch.empty(0, device=dataset.data.x.device)
                 # y_true = torch.Tensor()
                 if hasattr(self, 'optimizer'):
                     self.optimizer.zero_grad()
