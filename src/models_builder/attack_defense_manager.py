@@ -233,7 +233,21 @@ class FrameworkAttackDefenseManager:
         metrics_defense_values = {mask: {}}
         if metrics_attack is not None and y_predict_after_attack_only is not None:
             for metric in metrics_attack:
-                metrics_attack_values[mask][metric.name] = metric.compute(y_predict_clean, y_predict_after_attack_only)
+                metrics_attack_values[mask][metric.name] = metric.compute(
+                    y_predict_clean=y_predict_clean,
+                    y_predict_after_attack_only=y_predict_after_attack_only
+                )
+        if (
+                metrics_defense is not None
+                and y_predict_after_defense_only is not None
+                and y_predict_after_attack_and_defense is not None
+        ):
+            for metric in metrics_defense:
+                metrics_defense_values[mask][metric.name] = metric.compute(
+                    y_predict_clean=y_predict_clean,
+                    y_predict_after_defense_only=y_predict_after_defense_only,
+                    y_predict_after_attack_and_defense=y_predict_after_attack_and_defense
+                )
 
         return metrics_attack_values, metrics_defense_values
 

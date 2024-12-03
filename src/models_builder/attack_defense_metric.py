@@ -35,13 +35,41 @@ class AttackMetric:
 
     def compute(
             self,
-            metrics_clean_model,
-            metrics_after_attack
+            y_predict_clean,
+            y_predict_after_attack_only,
     ):
         if self.name in AttackMetric.available_metrics:
             return AttackMetric.available_metrics[self.name](
-                metrics_clean_model,
-                metrics_after_attack,
+                y_predict_clean=y_predict_clean,
+                y_predict_after_attack_only=y_predict_after_attack_only,
+                **self.kwargs
+            )
+        raise NotImplementedError()
+
+
+class DefenseMetric:
+    available_metrics = {
+    }
+
+    def __init__(
+            self,
+            name: str,
+            **kwargs
+    ):
+        self.name = name
+        self.kwargs = kwargs
+
+    def compute(
+            self,
+            y_predict_clean,
+            y_predict_after_defense_only,
+            y_predict_after_attack_and_defense,
+    ):
+        if self.name in AttackMetric.available_metrics:
+            return AttackMetric.available_metrics[self.name](
+                y_predict_clean=y_predict_clean,
+                y_predict_after_defense_only=y_predict_after_defense_only,
+                y_predict_after_attack_and_defense=y_predict_after_attack_and_defense,
                 **self.kwargs
             )
         raise NotImplementedError()
