@@ -951,15 +951,15 @@ class FrameworkGNNModelManager(GNNModelManager):
             batch,
             task_type: str = None
     ) -> torch.Tensor:
-        if self.mi_defender:
+        if self.mi_defender and self.mi_defense_flag:
             self.mi_defender.pre_batch()
-        if self.evasion_defender:
+        if self.evasion_defender and self.evasion_defense_flag:
             self.evasion_defender.pre_batch(model_manager=self, batch=batch)
         loss = self.train_on_batch(batch=batch, task_type=task_type)
-        if self.mi_defender:
+        if self.mi_defender and self.mi_defense_flag:
             self.mi_defender.post_batch()
         evasion_defender_dict = None
-        if self.evasion_defender:
+        if self.evasion_defender and self.evasion_defense_flag:
             evasion_defender_dict = self.evasion_defender.post_batch(
                 model_manager=self, batch=batch, loss=loss,
             )
@@ -1082,7 +1082,7 @@ class FrameworkGNNModelManager(GNNModelManager):
             steps=None,
             metrics: List[Metric] = None,
             socket: SocketIO = None
-    ) -> None:
+    ) -> Union[str, Path]:
         """
         Convenient train method.
 
@@ -1093,12 +1093,12 @@ class FrameworkGNNModelManager(GNNModelManager):
         :param metrics: list of metrics to measure at each step or at the end of training
         :param socket: socket to use for sending data to frontend
         """
-        if self.poison_attacker:
+        if self.poison_attacker and self.poison_attack_flag:
             loc = self.poison_attacker.attack(gen_dataset=gen_dataset)
             if loc is not None:
                 gen_dataset = loc
 
-        if self.poison_defender:
+        if self.poison_defender and self.poison_defense_flag:
             loc = self.poison_defender.defense(gen_dataset=gen_dataset)
             if loc is not None:
                 gen_dataset = loc
@@ -1256,8 +1256,11 @@ class FrameworkGNNModelManager(GNNModelManager):
             except KeyError:
                 assert isinstance(mask, torch.Tensor)
                 mask_tensor = mask
-            if self.evasion_attacker:
-                self.evasion_attacker.attack(model_manager=self, gen_dataset=gen_dataset, mask_tensor=mask_tensor)
+            if self.evasion_attacker and self.evasion_attack_flag:
+                self.call_evasion_attack(
+                    gen_dataset=gen_dataset,
+                    mask=mask,
+                )
             metrics_values[mask] = {}
             y_pred = self.run_model(gen_dataset, mask=mask)
             y_true = gen_dataset.labels[mask_tensor]
@@ -1265,9 +1268,35 @@ class FrameworkGNNModelManager(GNNModelManager):
             for metric in ms:
                 metrics_values[mask][metric.name] = metric.compute(y_pred, y_true)
                 # metrics_values[mask][metric.name] = MetricManager.compute(metric, y_pred, y_true)
+        if self.mi_attacker and self.mi_attack_flag:
+            self.call_mi_attack()
+        return metrics_values
+
+    def call_evasion_attack(
+            self,
+            gen_dataset: GeneralDataset,
+            mask: Union[str, List[bool], torch.Tensor] = 'test',
+    ):
+        if self.evasion_attacker:
+            try:
+                mask_tensor = {
+                    'train': gen_dataset.train_mask.tolist(),
+                    'val': gen_dataset.val_mask.tolist(),
+                    'test': gen_dataset.test_mask.tolist(),
+                    'all': [True] * len(gen_dataset.labels),
+                }[mask]
+            except KeyError:
+                assert isinstance(mask, torch.Tensor)
+                mask_tensor = mask
+            self.evasion_attacker.attack(
+                model_manager=self,
+                gen_dataset=gen_dataset,
+                mask_tensor=mask_tensor
+            )
+
+    def call_mi_attack(self):
         if self.mi_attacker:
             self.mi_attacker.attack()
-        return metrics_values
 
     def compute_stats_data(
             self,
