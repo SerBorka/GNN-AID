@@ -1,10 +1,12 @@
 import json
 from pathlib import Path
-from torch_geometric.utils import to_networkx, from_networkx
+from typing import Union
+
 import networkx as nx
+from torch_geometric.data import Data
+from torch_geometric.utils import from_networkx
 
 from base.datasets_processing import DatasetInfo
-from base.ptg_datasets import is_graph_directed
 
 
 class DatasetConverter:
@@ -86,7 +88,8 @@ class DatasetConverter:
                 with open(edge_attr_dir / attr, 'w') as f:
                     json.dump([a[attr] for a in all_edge_attributes], f)
 
-        # FIXME add new attri to DatasetInfo?
+        # We do not add the extracted attributes to DatasetInfo, since it regulates whether
+        # attributes should be used.
 
     @staticmethod
     def networkx_to_format(
@@ -123,6 +126,15 @@ class DatasetConverter:
 
         elif format == "s6":
             nx.write_sparse6(graph, graph_file)
+
+        # FORMATS THAT ARE NOT SUPPORTED:
+        # gexf, multiline_adjlist, weighted_edgelist
+        # # GRAPHML DOESN'T WORK WITH from_networkx()
+        # elif data_format == "graphml":
+        # # LEDA format is not supported as it stores edge attributes as strings
+        # elif data_format == "leda":
+        # # PAJEK format is not supported as it stores node attributes as strings
+        # elif data_format == "pajek": # Only works with graphs that have node labels
 
         else:
             raise NotImplementedError
@@ -172,22 +184,43 @@ def extract_attributes(
     return node_attributes, edge_attributes
 
 
-def ptg_to_networkx(ptg_graph):
-    node_attrs = None
-    if ptg_graph.x != None:
-        node_attrs = ["x"]
-    edge_attrs = None
-    if ptg_graph.edge_attr != None:
-        edge_attrs = ["edge_attr"]
+def read_nx_graph(
+        data_format: str,
+        path: Union[Path, str],
+        **kwargs
+) -> nx.Graph:
+    # FORMATS THAT ARE NOT SUPPORTED:
+    # gexf, multiline_adjlist, weighted_edgelist
+    if data_format == "adjlist":  # This format does not store graph or node attributes.
+        return nx.read_adjlist(path, **kwargs)
+    elif data_format == "edgelist":
+        return nx.read_edgelist(path, **kwargs)
+    elif data_format == "gml":  # Only works with graphs that have node, edge attributes
+        return nx.read_gml(path)
+    # # GRAPHML DOESN'T WORK WITH from_networkx()
+    # elif data_format == "graphml":
+    #     return nx.read_graphml(path, **kwargs)
+    # # LEDA format is not supported as it stores edge attributes as strings
+    # elif data_format == "leda":
+    #     return nx.read_leda(path, **kwargs)
+    elif data_format == "g6":
+        return nx.read_graph6(path)
+    elif data_format == "s6":
+        return nx.read_sparse6(path)
+    # # PAJEK format is not supported as it stores node attributes as strings
+    # elif data_format == "pajek": # Only works with graphs that have node labels
+    #     return nx.read_pajek(path, **kwargs)
+    else:
+        raise RuntimeError("the READING format is NOT SUPPORTED!!!")
 
-    # "graph_attrs" parameter is not working in this torch_geometric version
-    nx_graph = to_networkx(ptg_graph, node_attrs=node_attrs, edge_attrs=edge_attrs,
-                           to_undirected=not is_graph_directed(ptg_graph))
 
-    return nx_graph
-
-
-def networkx_to_ptg(nx_graph):
+def networkx_to_ptg(
+        nx_graph: nx.Graph
+) -> Data:
+    """
+    Convert networkx graph to a PTG Data.
+    Nodes and edges attributes, that numeric, are concatenated.
+    """
     node_attribute_names = set()
     edge_attribute_names = set()
 
@@ -222,59 +255,6 @@ def networkx_to_ptg(nx_graph):
     ptg_graph = from_networkx(nx_graph, group_node_attrs=node_attribute_names_list,
                               group_edge_attrs=edge_attribute_names_list)
     return ptg_graph
-
-
-def read_nx_graph(data_format, path, **kwargs):
-    # FORMATS THAT ARE NOT SUPPORTED:
-    # gexf, multiline_adjlist, weighted_edgelist
-    if data_format == "adjlist":  # This format does not store graph or node attributes.
-        return nx.read_adjlist(path, **kwargs)
-    elif data_format == "edgelist":
-        return nx.read_edgelist(path, **kwargs)
-    elif data_format == "gml":  # Only works with graphs that have node, edge attributes
-        return nx.read_gml(path)
-    # # GRAPHML DOESN'T WORK WITH from_networkx()
-    # elif data_format == "graphml":
-    #     return nx.read_graphml(path, **kwargs)
-    # # LEDA format is not supported as it stores edge attributes as strings
-    # elif data_format == "leda":
-    #     return nx.read_leda(path, **kwargs)
-    elif data_format == "g6":
-        return nx.read_graph6(path)
-    elif data_format == "s6":
-        return nx.read_sparse6(path)
-    # # PAJEK format is not supported as it stores node attributes as strings
-    # elif data_format == "pajek": # Only works with graphs that have node labels
-    #     return nx.read_pajek(path, **kwargs)
-    else:
-        raise RuntimeError("the READING format is NOT SUPPORTED!!!")
-
-
-def write_nx_graph(graph, data_format, path):
-    if data_format == "adjlist":
-        return nx.write_adjlist(graph, path)
-    # elif data_format == "multiline_adjlist":
-    #     return nx.write_multiline_adjlist(graph, path)
-    elif data_format == "edgelist":
-        return nx.write_edgelist(graph, path)
-    # elif data_format == "weighted_edgelist":
-    #     return nx.write_weighted_edgelist(graph, path)
-    # elif data_format == "gexf":
-    #     return nx.write_gexf(graph, path)
-    elif data_format == "gml":
-        return nx.write_gml(graph, path)
-    # elif data_format == "graphml":
-    #     return nx.write_graphml(graph, path)
-    # elif data_format == "leda":
-    #     return nx.write_leda(graph, path)
-    elif data_format == "g6":
-        return nx.write_graph6(graph, path)
-    elif data_format == "s6":
-        return nx.write_sparse6(graph, path)
-    # elif data_format == "pajek":
-    #     return nx.write_pajek(graph, path)
-    else:
-        raise RuntimeError("the WRITING format is NOT SUPPORTED!!!")
 
 
 def example_single():

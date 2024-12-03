@@ -1054,7 +1054,11 @@ class DatasetManager:
         return gen_dataset
 
 
-def merge_directories(source_dir, destination_dir, remove_source=False):
+def merge_directories(
+        source_dir: Union[Path, str],
+        destination_dir: Union[Path, str],
+        remove_source: bool = False
+):
     """
     Merge source directory into destination directory, replacing existing files.
 

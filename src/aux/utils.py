@@ -167,16 +167,26 @@ class tmp_dir():
     """
     Temporary create a directory near the given path. Remove it on exit.
     """
-    def __init__(self, path: Path):
+    def __init__(
+            self,
+            path: Path
+    ):
         self.path = path
         from time import time
         self.tmp_dir = self.path.parent / (self.path.name + str(time()))
 
-    def __enter__(self):
+    def __enter__(
+            self
+    ) -> Path:
         self.tmp_dir.mkdir(parents=True)
         return self.tmp_dir
 
-    def __exit__(self, exception_type, exception_value, exception_traceback):
+    def __exit__(
+            self,
+            exception_type,
+            exception_value,
+            exception_traceback
+    ) -> None:
         import shutil
         try:
             shutil.rmtree(self.tmp_dir)
