@@ -55,8 +55,8 @@ def attack_defense_metrics():
         modification=ModelModificationConfig(model_ver_ind=0, epochs=steps_epochs)
     )
 
-    save_model_flag = False
-    # save_model_flag = True
+    # save_model_flag = False
+    save_model_flag = True
 
     gnn_model_manager.gnn.to(my_device)
 

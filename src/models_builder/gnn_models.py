@@ -1082,7 +1082,7 @@ class FrameworkGNNModelManager(GNNModelManager):
             steps=None,
             metrics: List[Metric] = None,
             socket: SocketIO = None
-    ) -> None:
+    ) -> Union[str, Path]:
         """
         Convenient train method.
 
