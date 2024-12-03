@@ -113,11 +113,18 @@ class FrameworkAttackDefenseManager:
                 mask=mask,
                 out='logits',
             )
-            metrics_values = self.evaluate_attack_defense(
+
+            metrics_attack_values, _ = self.evaluate_attack_defense(
                 y_predict_after_attack_only=y_predict_attack,
                 y_predict_clean=y_predict_clean,
                 metrics_attack=metrics_attack,
+                mask=mask,
             )
+            if save_model_flag:
+                self.save_metrics(
+                    metrics_attack_values=metrics_attack_values,
+                    metrics_defense_values=None,
+                )
             self.return_attack_defense_flags()
 
         else:
@@ -252,4 +259,5 @@ class FrameworkAttackDefenseManager:
             file_dict[key] = value
 
         with open(file_path, "w") as f:
+            print(json.dumps(prepare_dict_for_json(file_dict), indent=2))
             json.dump(prepare_dict_for_json(file_dict), f, indent=2)

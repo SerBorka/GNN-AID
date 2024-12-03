@@ -17,7 +17,6 @@ def asr(
         if y_predict_after_attack_only.dim() > 1:
             y_predict_after_attack_only = y_predict_after_attack_only.argmax(dim=1)
         y_predict_after_attack_only.cpu()
-    print("ASR ", 1 - sklearn.metrics.accuracy_score(y_true=y_predict_clean, y_pred=y_predict_after_attack_only))
     return 1 - sklearn.metrics.accuracy_score(y_true=y_predict_clean, y_pred=y_predict_after_attack_only)
 
 
