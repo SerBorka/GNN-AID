@@ -143,7 +143,13 @@ def attack_defense_metrics():
         gen_dataset=dataset,
         gnn_manager=gnn_model_manager,
     )
-    adm.evasion_attack_pipeline(
+    # adm.evasion_attack_pipeline(
+    #     steps=steps_epochs,
+    #     save_model_flag=save_model_flag,
+    #     metrics_attack=[AttackMetric("ASR")],
+    #     mask='test'
+    # )
+    adm.poison_attack_pipeline(
         steps=steps_epochs,
         save_model_flag=save_model_flag,
         metrics_attack=[AttackMetric("ASR")],

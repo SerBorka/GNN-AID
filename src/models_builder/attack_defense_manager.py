@@ -124,6 +124,58 @@ class FrameworkAttackDefenseManager:
 
         return metrics_values
 
+    def poison_attack_pipeline(
+            self,
+            metrics_attack,
+            steps: int,
+            save_model_flag: bool = True,
+            mask: Union[str, List[bool], torch.Tensor] = 'test',
+    ):
+        metrics_values = {}
+        if self.available_attacks["poison"]:
+            self.set_clear_model()
+            self.gnn_manager.modification.epochs = 0
+            self.gnn_manager.gnn.reset_parameters()
+            from models_builder.gnn_models import Metric
+            self.gnn_manager.train_model(
+                gen_dataset=self.gen_dataset,
+                steps=steps,
+                save_model_flag=save_model_flag,
+                metrics=[Metric("F1", mask='train', average=None)]
+            )
+            y_predict_clean = self.gnn_manager.run_model(
+                gen_dataset=self.gen_dataset,
+                mask=mask,
+                out='logits',
+            )
+
+            self.gnn_manager.poison_attack_flag = True
+            self.gnn_manager.modification.epochs = 0
+            self.gnn_manager.gnn.reset_parameters()
+            self.gnn_manager.train_model(
+                gen_dataset=self.gen_dataset,
+                steps=steps,
+                save_model_flag=save_model_flag,
+                metrics=[Metric("F1", mask='train', average=None)]
+            )
+            y_predict_attack = self.gnn_manager.run_model(
+                gen_dataset=self.gen_dataset,
+                mask=mask,
+                out='logits',
+            )
+            metrics_values = self.evaluate_attack_defense(
+                y_predict_after_attack_only=y_predict_attack,
+                y_predict_clean=y_predict_clean,
+                metrics_attack=metrics_attack,
+            )
+            self.return_attack_defense_flags()
+
+        else:
+            warnings.warn(f"Evasion attack is not available. Please set evasion attack for "
+                          f"gnn_model_manager use def set_evasion_attacker")
+
+        return metrics_values
+
     def evaluate_attack_defense(
             self,
             y_predict_clean,
