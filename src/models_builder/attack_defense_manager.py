@@ -1,5 +1,7 @@
 import warnings
-from typing import Type
+from typing import Type, Union, List
+
+import torch
 
 from base.datasets_processing import GeneralDataset
 
@@ -69,13 +71,15 @@ class FrameworkAttackDefenseManager:
     def evasion_attack_pipeline(
             self,
             metrics_attack,
-            model_metrics,
             steps: int,
             save_model_flag: bool = True,
+            mask: Union[str, List[bool], torch.Tensor] = 'test',
     ):
         metrics_values = {}
         if self.available_attacks["evasion"]:
             self.set_clear_model()
+            self.gnn_manager.modification.epochs = 0
+            self.gnn_manager.gnn.reset_parameters()
             from models_builder.gnn_models import Metric
             self.gnn_manager.train_model(
                 gen_dataset=self.gen_dataset,
@@ -83,31 +87,55 @@ class FrameworkAttackDefenseManager:
                 save_model_flag=save_model_flag,
                 metrics=[Metric("F1", mask='train', average=None)]
             )
-            metric_clean_model = self.gnn_manager.evaluate_model(
+            y_predict_clean = self.gnn_manager.run_model(
                 gen_dataset=self.gen_dataset,
-                metrics=model_metrics
+                mask=mask,
+                out='logits',
             )
+
             self.gnn_manager.evasion_attack_flag = True
+            self.gnn_manager.modification.epochs = 0
+            self.gnn_manager.gnn.reset_parameters()
             self.gnn_manager.train_model(
                 gen_dataset=self.gen_dataset,
                 steps=steps,
                 save_model_flag=save_model_flag,
                 metrics=[Metric("F1", mask='train', average=None)]
             )
-            metric_evasion_attack_only = self.gnn_manager.evaluate_model(
+            self.gnn_manager.call_evasion_attack(
                 gen_dataset=self.gen_dataset,
-                metrics=model_metrics
+                mask=mask,
             )
-            # TODO Kirill
-            # metrics_values = evaluate_attacks(
-            #     metric_clean_model,
-            #     metric_evasion_attack_only,
-            #     metrics_attack=metrics_attack
-            # )
+            y_predict_attack = self.gnn_manager.run_model(
+                gen_dataset=self.gen_dataset,
+                mask=mask,
+                out='logits',
+            )
+            metrics_values = self.evaluate_attack_defense(
+                y_predict_after_attack_only=y_predict_attack,
+                y_predict_clean=y_predict_clean,
+                metrics_attack=metrics_attack,
+            )
             self.return_attack_defense_flags()
-            pass
+
         else:
             warnings.warn(f"Evasion attack is not available. Please set evasion attack for "
                           f"gnn_model_manager use def set_evasion_attacker")
 
         return metrics_values
+
+    def evaluate_attack_defense(
+            self,
+            y_predict_clean,
+            y_predict_after_attack_only=None,
+            y_predict_after_defense_only=None,
+            y_predict_after_attack_and_defense=None,
+            metrics_attack=None,
+            metrics_defense=None,
+    ):
+        metrics_attack_values = {}
+        if metrics_attack is not None and y_predict_after_attack_only is not None:
+            for metric in metrics_attack:
+                metrics_attack_values[metric.name] = metric.compute(y_predict_clean, y_predict_after_attack_only)
+
+        return metrics_attack_values

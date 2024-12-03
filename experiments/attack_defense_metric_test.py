@@ -4,6 +4,7 @@ import torch
 from torch import device
 
 from models_builder.attack_defense_manager import FrameworkAttackDefenseManager
+from models_builder.attack_defense_metric import AttackMetric
 from models_builder.models_utils import apply_decorator_to_graph_layers
 from src.aux.utils import POISON_ATTACK_PARAMETERS_PATH, POISON_DEFENSE_PARAMETERS_PATH, EVASION_ATTACK_PARAMETERS_PATH, \
     EVASION_DEFENSE_PARAMETERS_PATH
@@ -114,33 +115,39 @@ def attack_defense_metrics():
     warnings.warn("Start training")
     dataset.train_test_split()
 
-    try:
-        # raise FileNotFoundError()
-        gnn_model_manager.load_model_executor()
-        dataset = gnn_model_manager.load_train_test_split(dataset)
-    except FileNotFoundError:
-        gnn_model_manager.epochs = gnn_model_manager.modification.epochs = 0
-        train_test_split_path = gnn_model_manager.train_model(gen_dataset=dataset, steps=steps_epochs,
-                                                              save_model_flag=save_model_flag,
-                                                              metrics=[Metric("F1", mask='train', average=None)])
-
-        if train_test_split_path is not None:
-            dataset.save_train_test_mask(train_test_split_path)
-            train_mask, val_mask, test_mask, train_test_sizes = torch.load(train_test_split_path / 'train_test_split')[
-                                                                :]
-            dataset.train_mask, dataset.val_mask, dataset.test_mask = train_mask, val_mask, test_mask
-            data.percent_train_class, data.percent_test_class = train_test_sizes
-
-    warnings.warn("Training was successful")
-
-    metric_loc = gnn_model_manager.evaluate_model(
-        gen_dataset=dataset, metrics=[Metric("F1", mask='test', average='macro'),
-                                      Metric("Accuracy", mask='test')])
-    print(metric_loc)
+    # try:
+    #     # raise FileNotFoundError()
+    #     gnn_model_manager.load_model_executor()
+    #     dataset = gnn_model_manager.load_train_test_split(dataset)
+    # except FileNotFoundError:
+    #     gnn_model_manager.epochs = gnn_model_manager.modification.epochs = 0
+    #     train_test_split_path = gnn_model_manager.train_model(gen_dataset=dataset, steps=steps_epochs,
+    #                                                           save_model_flag=save_model_flag,
+    #                                                           metrics=[Metric("F1", mask='train', average=None)])
+    #
+    #     if train_test_split_path is not None:
+    #         dataset.save_train_test_mask(train_test_split_path)
+    #         train_mask, val_mask, test_mask, train_test_sizes = torch.load(train_test_split_path / 'train_test_split')[
+    #                                                             :]
+    #         dataset.train_mask, dataset.val_mask, dataset.test_mask = train_mask, val_mask, test_mask
+    #         data.percent_train_class, data.percent_test_class = train_test_sizes
+    #
+    # warnings.warn("Training was successful")
+    #
+    # metric_loc = gnn_model_manager.evaluate_model(
+    #     gen_dataset=dataset, metrics=[Metric("F1", mask='test', average='macro'),
+    #                                   Metric("Accuracy", mask='test')])
+    # print(metric_loc)
 
     adm = FrameworkAttackDefenseManager(
         gen_dataset=dataset,
         gnn_manager=gnn_model_manager,
+    )
+    adm.evasion_attack_pipeline(
+        steps=steps_epochs,
+        save_model_flag=save_model_flag,
+        metrics_attack=[AttackMetric("ASR")],
+        mask='test'
     )
 
 
