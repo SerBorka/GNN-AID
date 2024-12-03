@@ -156,7 +156,7 @@ def attack_defense_metrics():
     #     metrics_attack=[AttackMetric("ASR")],
     #     mask='test'
     # )
-    adm.poison_defense_pipeline(
+    adm.evasion_defense_pipeline(
         steps=steps_epochs,
         save_model_flag=save_model_flag,
         metrics_attack=[AttackMetric("ASR"), AttackMetric("AuccAttackDiff"),],

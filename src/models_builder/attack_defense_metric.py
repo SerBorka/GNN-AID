@@ -1,12 +1,13 @@
-from typing import Union, List, Callable
+from typing import Union, List, Callable, Any
 
+import numpy as np
 import sklearn
 import torch
 
 
 def asr(
-        y_predict_clean,
-        y_predict_after_attack_only,
+        y_predict_clean: Union[List, torch.Tensor, np.array],
+        y_predict_after_attack_only: Union[List, torch.Tensor, np.array],
         **kwargs
 ):
     if isinstance(y_predict_clean, torch.Tensor):
@@ -22,8 +23,8 @@ def asr(
 
 # TODO Kirill, change for any classic metric
 def aucc_change_attack(
-        y_predict_clean,
-        y_predict_after_attack_only,
+        y_predict_clean: Union[List, torch.Tensor, np.array],
+        y_predict_after_attack_only: Union[List, torch.Tensor, np.array],
         y_true,
         **kwargs
 ):
@@ -45,9 +46,9 @@ def aucc_change_attack(
 
 # TODO Kirill, change for any classic metric
 def aucc_change_defense_only(
-        y_predict_clean,
-        y_predict_after_defense_only,
-        y_true,
+        y_predict_clean: Union[List, torch.Tensor, np.array],
+        y_predict_after_defense_only: Union[List, torch.Tensor, np.array],
+        y_true: Union[List, torch.Tensor, np.array],
         **kwargs
 ):
     if isinstance(y_predict_clean, torch.Tensor):
@@ -68,9 +69,9 @@ def aucc_change_defense_only(
 
 # TODO Kirill, change for any classic metric
 def aucc_change_defense_with_attack(
-        y_predict_after_attack_only,
-        y_predict_after_attack_and_defense,
-        y_true,
+        y_predict_after_attack_only: Union[List, torch.Tensor, np.array],
+        y_predict_after_attack_and_defense: Union[List, torch.Tensor, np.array],
+        y_true: Union[List, torch.Tensor, np.array],
         **kwargs
 ):
     if isinstance(y_predict_after_attack_only, torch.Tensor):
@@ -105,9 +106,9 @@ class AttackMetric:
 
     def compute(
             self,
-            y_predict_clean,
-            y_predict_after_attack_only,
-            y_true,
+            y_predict_clean: Union[List, torch.Tensor, np.array, None],
+            y_predict_after_attack_only: Union[List, torch.Tensor, np.array, None],
+            y_true: Union[List, torch.Tensor, np.array, None],
     ):
         if self.name in AttackMetric.available_metrics:
             return AttackMetric.available_metrics[self.name](
@@ -135,11 +136,11 @@ class DefenseMetric:
 
     def compute(
             self,
-            y_predict_clean,
-            y_predict_after_attack_only,
-            y_predict_after_defense_only,
-            y_predict_after_attack_and_defense,
-            y_true,
+            y_predict_clean: Union[List, torch.Tensor, np.array, None],
+            y_predict_after_attack_only: Union[List, torch.Tensor, np.array, None],
+            y_predict_after_defense_only: Union[List, torch.Tensor, np.array, None],
+            y_predict_after_attack_and_defense: Union[List, torch.Tensor, np.array, None],
+            y_true: Union[List, torch.Tensor, np.array, None],
     ):
         if self.name in DefenseMetric.available_metrics:
             return DefenseMetric.available_metrics[self.name](
