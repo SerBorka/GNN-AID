@@ -200,6 +200,101 @@ class FrameworkAttackDefenseManager:
 
         return metrics_values
 
+    def poison_defense_pipeline(
+            self,
+            metrics_attack: List,
+            metrics_defense: List,
+            steps: int,
+            save_model_flag: bool = True,
+            mask: Union[str, List[bool], torch.Tensor] = 'test',
+    ) -> dict:
+        metrics_values = {}
+        if self.available_attacks["poison"] and self.available_defense["poison"]:
+            from models_builder.gnn_models import Metric
+            local_gen_dataset_copy = copy.deepcopy(self.gen_dataset)
+            self.set_clear_model()
+            self.gnn_manager.modification.epochs = 0
+            self.gnn_manager.gnn.reset_parameters()
+            self.gnn_manager.train_model(
+                gen_dataset=local_gen_dataset_copy,
+                steps=steps,
+                save_model_flag=False,
+                metrics=[Metric("F1", mask='train', average=None)]
+            )
+            y_predict_clean = self.gnn_manager.run_model(
+                gen_dataset=local_gen_dataset_copy,
+                mask=mask,
+                out='logits',
+            )
+
+            self.gnn_manager.poison_defense_flag = True
+            self.gnn_manager.modification.epochs = 0
+            self.gnn_manager.gnn.reset_parameters()
+            self.gnn_manager.train_model(
+                gen_dataset=local_gen_dataset_copy,
+                steps=steps,
+                save_model_flag=False,
+                metrics=[Metric("F1", mask='train', average=None)]
+            )
+            y_predict_after_defense_only = self.gnn_manager.run_model(
+                gen_dataset=local_gen_dataset_copy,
+                mask=mask,
+                out='logits',
+            )
+
+            local_gen_dataset_copy = copy.deepcopy(self.gen_dataset)
+            self.gnn_manager.poison_defense_flag = False
+            self.gnn_manager.poison_attack_flag = True
+            self.gnn_manager.modification.epochs = 0
+            self.gnn_manager.gnn.reset_parameters()
+            self.gnn_manager.train_model(
+                gen_dataset=local_gen_dataset_copy,
+                steps=steps,
+                save_model_flag=False,
+                metrics=[Metric("F1", mask='train', average=None)]
+            )
+            y_predict_after_attack_only = self.gnn_manager.run_model(
+                gen_dataset=local_gen_dataset_copy,
+                mask=mask,
+                out='logits',
+            )
+
+            self.gnn_manager.poison_defense_flag = True
+            self.gnn_manager.modification.epochs = 0
+            self.gnn_manager.gnn.reset_parameters()
+            self.gnn_manager.train_model(
+                gen_dataset=local_gen_dataset_copy,
+                steps=steps,
+                save_model_flag=save_model_flag,
+                metrics=[Metric("F1", mask='train', average=None)]
+            )
+            y_predict_after_attack_and_defense = self.gnn_manager.run_model(
+                gen_dataset=local_gen_dataset_copy,
+                mask=mask,
+                out='logits',
+            )
+
+            metrics_attack_values, metrics_defense_values = self.evaluate_attack_defense(
+                y_predict_after_attack_only=y_predict_after_attack_only,
+                y_predict_clean=y_predict_clean,
+                y_predict_after_defense_only=y_predict_after_defense_only,
+                y_predict_after_attack_and_defense=y_predict_after_attack_and_defense,
+                metrics_attack=metrics_attack,
+                metrics_defense=metrics_defense,
+                mask=mask,
+            )
+            if save_model_flag:
+                self.save_metrics(
+                    metrics_attack_values=metrics_attack_values,
+                    metrics_defense_values=metrics_defense_values,
+                )
+            self.return_attack_defense_flags()
+        else:
+            warnings.warn(f"Evasion attack is not available. Please set evasion attack for "
+                          f"gnn_model_manager use def set_evasion_attacker")
+
+        return metrics_values
+
     def save_metrics(
             self,
             metrics_attack_values: Union[dict, None] = None,
@@ -221,9 +316,8 @@ class FrameworkAttackDefenseManager:
                 new_dict=metrics_defense_values
             )
 
-    @staticmethod
     def evaluate_attack_defense(
-            # self,
+            self,
             y_predict_clean: Union[List, torch.Tensor, np.array],
             mask: Union[str, torch.Tensor],
             y_predict_after_attack_only: Union[List, torch.Tensor, np.array, None] = None,
@@ -232,13 +326,26 @@ class FrameworkAttackDefenseManager:
             metrics_attack: Union[List, None] = None,
             metrics_defense: Union[List, None] = None,
     ):
+
+        try:
+            mask_tensor = {
+                'train': self.gen_dataset.train_mask.tolist(),
+                'val': self.gen_dataset.val_mask.tolist(),
+                'test': self.gen_dataset.test_mask.tolist(),
+                'all': [True] * len(self.gen_dataset.labels),
+            }[mask]
+        except KeyError:
+            assert isinstance(mask, torch.Tensor)
+            mask_tensor = mask
+        y_true = copy.deepcopy(self.gen_dataset.labels[mask_tensor])
         metrics_attack_values = {mask: {}}
         metrics_defense_values = {mask: {}}
         if metrics_attack is not None and y_predict_after_attack_only is not None:
             for metric in metrics_attack:
                 metrics_attack_values[mask][metric.name] = metric.compute(
                     y_predict_clean=y_predict_clean,
-                    y_predict_after_attack_only=y_predict_after_attack_only
+                    y_predict_after_attack_only=y_predict_after_attack_only,
+                    y_true=y_true,
                 )
         if (
                 metrics_defense is not None
@@ -248,10 +355,12 @@ class FrameworkAttackDefenseManager:
             for metric in metrics_defense:
                 metrics_defense_values[mask][metric.name] = metric.compute(
                     y_predict_clean=y_predict_clean,
+                    y_predict_after_attack_only=y_predict_after_attack_only,
                     y_predict_after_defense_only=y_predict_after_defense_only,
-                    y_predict_after_attack_and_defense=y_predict_after_attack_and_defense
+                    y_predict_after_attack_and_defense=y_predict_after_attack_and_defense,
+                    y_true=y_true,
                 )
-
+        print("!!!! ", metrics_attack_values, metrics_defense_values)
         return metrics_attack_values, metrics_defense_values
 
     @staticmethod
