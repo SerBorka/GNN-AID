@@ -1,8 +1,10 @@
 import json
 import os
 import warnings
-from typing import Type, Union, List
+from pathlib import Path
+from typing import Type, Union, List, Any
 
+import numpy as np
 import torch
 
 from base.datasets_processing import GeneralDataset
@@ -54,7 +56,9 @@ class FrameworkAttackDefenseManager:
             "mi_defense": self.gnn_manager.mi_defense_flag,
         }
 
-    def set_clear_model(self):
+    def set_clear_model(
+            self
+    ) -> None:
         self.gnn_manager.poison_attack_flag = False
         self.gnn_manager.evasion_attack_flag = False
         self.gnn_manager.mi_attack_flag = False
@@ -62,7 +66,9 @@ class FrameworkAttackDefenseManager:
         self.gnn_manager.evasion_defense_flag = False
         self.gnn_manager.mi_defense_flag = False
 
-    def return_attack_defense_flags(self):
+    def return_attack_defense_flags(
+            self
+    ) -> None:
         self.gnn_manager.poison_attack_flag = self.start_attack_defense_flag_state["poison_attack"]
         self.gnn_manager.evasion_attack_flag = self.start_attack_defense_flag_state["evasion_attack"]
         self.gnn_manager.mi_attack_flag = self.start_attack_defense_flag_state["mi_attack"]
@@ -72,11 +78,11 @@ class FrameworkAttackDefenseManager:
 
     def evasion_attack_pipeline(
             self,
-            metrics_attack,
+            metrics_attack: List,
             steps: int,
             save_model_flag: bool = True,
             mask: Union[str, List[bool], torch.Tensor] = 'test',
-    ):
+    ) -> dict:
         metrics_values = {}
         if self.available_attacks["evasion"]:
             self.set_clear_model()
@@ -135,11 +141,11 @@ class FrameworkAttackDefenseManager:
 
     def poison_attack_pipeline(
             self,
-            metrics_attack,
+            metrics_attack: List,
             steps: int,
             save_model_flag: bool = True,
             mask: Union[str, List[bool], torch.Tensor] = 'test',
-    ):
+    ) -> dict:
         metrics_values = {}
         if self.available_attacks["poison"]:
             self.set_clear_model()
@@ -215,13 +221,13 @@ class FrameworkAttackDefenseManager:
     @staticmethod
     def evaluate_attack_defense(
             # self,
-            y_predict_clean,
-            mask,
-            y_predict_after_attack_only=None,
-            y_predict_after_defense_only=None,
-            y_predict_after_attack_and_defense=None,
-            metrics_attack=None,
-            metrics_defense=None,
+            y_predict_clean: Union[List, torch.Tensor, np.array],
+            mask: Union[str, torch.Tensor],
+            y_predict_after_attack_only: Union[List, torch.Tensor, np.array, None] = None,
+            y_predict_after_defense_only: Union[List, torch.Tensor, np.array, None] = None,
+            y_predict_after_attack_and_defense: Union[List, torch.Tensor, np.array, None] = None,
+            metrics_attack: Union[List, None] = None,
+            metrics_defense: Union[List, None] = None,
     ):
         metrics_attack_values = {mask: {}}
         metrics_defense_values = {mask: {}}
@@ -232,7 +238,10 @@ class FrameworkAttackDefenseManager:
         return metrics_attack_values, metrics_defense_values
 
     @staticmethod
-    def update_dictionary_in_file(file_path, new_dict):
+    def update_dictionary_in_file(
+            file_path: Union[str, Path],
+            new_dict: dict
+    ) -> None:
         def tensor_to_str(key):
             if isinstance(key, torch.Tensor):
                 return key.tolist()
@@ -255,8 +264,11 @@ class FrameworkAttackDefenseManager:
         else:
             file_dict = {}
 
-        for key, value in new_dict.items():
-            file_dict[key] = value
+        for mask, metrics in new_dict.items():
+            for metric, value in metrics.items():
+                if mask not in file_dict:
+                    file_dict[mask] = {}
+                file_dict[mask][metric] = value
 
         with open(file_path, "w") as f:
             print(json.dumps(prepare_dict_for_json(file_dict), indent=2))
