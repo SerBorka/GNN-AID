@@ -1,3 +1,4 @@
+import copy
 import warnings
 
 import torch
@@ -140,7 +141,7 @@ def attack_defense_metrics():
     # print(metric_loc)
 
     adm = FrameworkAttackDefenseManager(
-        gen_dataset=dataset,
+        gen_dataset=copy.deepcopy(dataset),
         gnn_manager=gnn_model_manager,
     )
     # adm.evasion_attack_pipeline(

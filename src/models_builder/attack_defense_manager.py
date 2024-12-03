@@ -1,3 +1,4 @@
+import copy
 import json
 import os
 import warnings
@@ -89,14 +90,15 @@ class FrameworkAttackDefenseManager:
             self.gnn_manager.modification.epochs = 0
             self.gnn_manager.gnn.reset_parameters()
             from models_builder.gnn_models import Metric
+            local_gen_dataset_copy = copy.deepcopy(self.gen_dataset)
             self.gnn_manager.train_model(
-                gen_dataset=self.gen_dataset,
+                gen_dataset=local_gen_dataset_copy,
                 steps=steps,
-                save_model_flag=save_model_flag,
+                save_model_flag=False,
                 metrics=[Metric("F1", mask='train', average=None)]
             )
             y_predict_clean = self.gnn_manager.run_model(
-                gen_dataset=self.gen_dataset,
+                gen_dataset=local_gen_dataset_copy,
                 mask=mask,
                 out='logits',
             )
@@ -105,17 +107,17 @@ class FrameworkAttackDefenseManager:
             self.gnn_manager.modification.epochs = 0
             self.gnn_manager.gnn.reset_parameters()
             self.gnn_manager.train_model(
-                gen_dataset=self.gen_dataset,
+                gen_dataset=local_gen_dataset_copy,
                 steps=steps,
                 save_model_flag=save_model_flag,
                 metrics=[Metric("F1", mask='train', average=None)]
             )
             self.gnn_manager.call_evasion_attack(
-                gen_dataset=self.gen_dataset,
+                gen_dataset=local_gen_dataset_copy,
                 mask=mask,
             )
             y_predict_attack = self.gnn_manager.run_model(
-                gen_dataset=self.gen_dataset,
+                gen_dataset=local_gen_dataset_copy,
                 mask=mask,
                 out='logits',
             )
@@ -152,14 +154,15 @@ class FrameworkAttackDefenseManager:
             self.gnn_manager.modification.epochs = 0
             self.gnn_manager.gnn.reset_parameters()
             from models_builder.gnn_models import Metric
+            local_gen_dataset_copy = copy.deepcopy(self.gen_dataset)
             self.gnn_manager.train_model(
-                gen_dataset=self.gen_dataset,
+                gen_dataset=local_gen_dataset_copy,
                 steps=steps,
                 save_model_flag=False,
                 metrics=[Metric("F1", mask='train', average=None)]
             )
             y_predict_clean = self.gnn_manager.run_model(
-                gen_dataset=self.gen_dataset,
+                gen_dataset=local_gen_dataset_copy,
                 mask=mask,
                 out='logits',
             )
@@ -168,13 +171,13 @@ class FrameworkAttackDefenseManager:
             self.gnn_manager.modification.epochs = 0
             self.gnn_manager.gnn.reset_parameters()
             self.gnn_manager.train_model(
-                gen_dataset=self.gen_dataset,
+                gen_dataset=local_gen_dataset_copy,
                 steps=steps,
                 save_model_flag=save_model_flag,
                 metrics=[Metric("F1", mask='train', average=None)]
             )
             y_predict_attack = self.gnn_manager.run_model(
-                gen_dataset=self.gen_dataset,
+                gen_dataset=local_gen_dataset_copy,
                 mask=mask,
                 out='logits',
             )
