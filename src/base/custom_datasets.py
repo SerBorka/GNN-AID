@@ -1,57 +1,157 @@
 import json
 import os
 from pathlib import Path
+from typing import Union
+
 import numpy as np
 import torch
 from torch_geometric.data import Data, InMemoryDataset
 
 from aux.declaration import Declare
 from base.datasets_processing import GeneralDataset, DatasetInfo
-from aux.configs import DatasetConfig, DatasetVarConfig
+from aux.configs import DatasetConfig, DatasetVarConfig, ConfigPattern
 from base.ptg_datasets import LocalDataset
 
 
-class CustomDataset(GeneralDataset):
+class CustomDataset(
+    GeneralDataset
+):
     """ User-defined dataset in 'ij' format.
     """
-    def __init__(self, dataset_config: DatasetConfig):
+    def __init__(
+            self,
+            dataset_config: Union[ConfigPattern, DatasetConfig]
+    ):
         """
         Args:
             dataset_config: DatasetConfig dict from frontend
         """
         super().__init__(dataset_config)
 
-        assert self.labels_dir.exists()
+        # assert self.labels_dir.exists()
         self.info = DatasetInfo.read(self.info_path)
         self.node_map = None  # Optional nodes mapping: node_map[i] = original id of node i
         self.edge_index = None
 
     @property
-    def node_attributes_dir(self):
+    def node_attributes_dir(
+            self
+    ):
         """ Path to dir with node attributes. """
         return self.root_dir / 'raw' / (self.name + '.node_attributes')
 
     @property
-    def edge_attributes_dir(self):
+    def edge_attributes_dir(
+            self
+    ):
         """ Path to dir with edge attributes. """
         return self.root_dir / 'raw' / (self.name + '.edge_attributes')
 
     @property
-    def labels_dir(self):
+    def labels_dir(
+            self
+    ):
         """ Path to dir with labels. """
         return self.root_dir / 'raw' / (self.name + '.labels')
 
     @property
-    def edges_path(self):
+    def edges_path(
+            self
+    ):
         """ Path to file with edge list. """
         return self.root_dir / 'raw' / (self.name + '.ij')
 
     @property
-    def edge_index_path(self):
+    def edge_index_path(
+            self
+    ):
         """ Path to dir with labels. """
         return self.root_dir / 'raw' / (self.name + '.edge_index')
 
-    def build(self, dataset_var_config: DatasetVarConfig):
+    def check_validity(
+            self
+    ):
+        """ Check that dataset files (graph and attributes) are valid and consistent with .info.
+        """
+        # Assuming info is OK
+        count = self.info.count
+        # Check edges
+        if self.is_multi():
+            with open(self.edges_path, 'r') as f:
+                num_edges = sum(1 for _ in f)
+            with open(self.edge_index_path, 'r') as f:
+                edge_index = json.load(f)
+                assert all(i <= num_edges for i in edge_index)
+                assert num_edges == edge_index[-1]
+                assert count == len(edge_index)
+
+        # Check nodes
+        all_nodes = [set() for _ in range(count)]  # sets of nodes
+        if self.is_multi():
+            with open(self.edges_path, 'r') as f:
+                start = 0
+                for ix, end in enumerate(edge_index):
+                    for _ in range(end-start):
+                        all_nodes[ix].update(map(int, f.readline().split()))
+                    if self.info.remap:
+                        assert len(all_nodes[ix]) == self.info.nodes[ix]
+                    else:
+                        assert all_nodes[ix] == set(range(self.info.nodes[ix]))
+                    start = end
+        else:
+            with open(self.edges_path, 'r') as f:
+                for line in f.readlines():
+                    all_nodes[0].update(map(int, line.split()))
+                if self.info.remap:
+                    assert len(all_nodes[0]) == self.info.nodes[0]
+                else:
+                    assert all_nodes[0] == set(range(self.info.nodes[0]))
+
+        # Check node attributes
+        for ix, attr in enumerate(self.info.node_attributes["names"]):
+            with open(self.node_attributes_dir / attr, 'r') as f:
+                node_attributes = json.load(f)
+            if not self.is_multi():
+                node_attributes = [node_attributes]
+            for i, attributes in enumerate(node_attributes):
+                assert all_nodes[i] == set(map(int, attributes.keys()))
+                if self.info.node_attributes["types"][ix] == "continuous":
+                    v_min, v_max = self.info.node_attributes["values"][ix]
+                    assert all(isinstance(v, (int, float, complex)) for v in attributes.values())
+                    assert min(attributes.values()) >= v_min
+                    assert max(attributes.values()) <= v_max
+                elif self.info.node_attributes["types"][ix] == "categorical":
+                    assert set(attributes.values()).issubset(set(self.info.node_attributes["values"][ix]))
+
+        # Check edge attributes
+        for ix, attr in enumerate(self.info.edge_attributes["names"]):
+            with open(self.edge_attributes_dir / attr, 'r') as f:
+                edge_attributes = json.load(f)
+            if not self.is_multi():
+                edge_attributes = [edge_attributes]
+            for i, attributes in enumerate(edge_attributes):
+                # TODO check edges
+                if self.info.edge_attributes["types"][ix] == "continuous":
+                    v_min, v_max = self.info.edge_attributes["values"][ix]
+                    assert all(isinstance(v, (int, float, complex)) for v in attributes.values())
+                    assert min(attributes.values()) >= v_min
+                    assert max(attributes.values()) <= v_max
+                elif self.info.edge_attributes["types"][ix] == "categorical":
+                    assert set(attributes.values()).issubset(set(self.info.edge_attributes["values"][ix]))
+
+        # Check labels
+        for labelling, n_classes in self.info.labelings.items():
+            with open(self.labels_dir / labelling, 'r') as f:
+                labels = json.load(f)
+            if self.is_multi():  # graph labels
+                assert set(range(count)) == set(map(int, labels.keys()))
+            else:  # nodes labels
+                assert all_nodes[0] == set(map(int, labels.keys()))
+
+    def build(
+            self,
+            dataset_var_config: Union[ConfigPattern, DatasetVarConfig]
+    ) -> None:
         """ Build ptg dataset based on dataset_var_config and create DatasetVarData.
         """
         if dataset_var_config == self.dataset_var_config:
@@ -63,7 +163,10 @@ class CustomDataset(GeneralDataset):
         self.dataset_var_config = dataset_var_config
         self.dataset = LocalDataset(self.results_dir, process_func=self._create_ptg)
 
-    def _compute_stat(self, stat):
+    def _compute_stat(
+            self,
+            stat: str
+    ) -> dict:
         """ Compute some additional stats
         """
         if stat == "attr_corr":
@@ -125,7 +228,9 @@ class CustomDataset(GeneralDataset):
 
         raise NotImplementedError()
 
-    def _compute_dataset_data(self):
+    def _compute_dataset_data(
+            self
+    ) -> None:
         """ Get DatasetData for debug graph
         Structure according to https://docs.google.com/spreadsheets/d/1fNI3sneeGoOFyIZP_spEjjD-7JX2jNl_P8CQrA4HZiI/edit#gid=1096434224
         """
@@ -274,7 +379,9 @@ class CustomDataset(GeneralDataset):
         # if self.info.name == "":
         #     self.dataset_data['info']['name'] = '/'.join(self.dataset_config.full_name())
 
-    def _create_ptg(self):
+    def _create_ptg(
+            self
+    ) -> None:
         """ Create PTG Dataset and save tensors
         """
         if self.edge_index is None:
@@ -297,7 +404,10 @@ class CustomDataset(GeneralDataset):
         self.results_dir.mkdir(exist_ok=True, parents=True)
         torch.save(InMemoryDataset.collate(data_list), self.results_dir / 'data.pt')
 
-    def _iter_nodes(self, graph: int = None):
+    def _iter_nodes(
+            self,
+            graph: int = None
+    ) -> None:
         """ Iterate over nodes according to mapping. Yields pairs of (node_index, original_id)
         """
         # offset = sum(self.info.nodes[:graph]) if self.is_multi() else 0
@@ -310,7 +420,10 @@ class CustomDataset(GeneralDataset):
             for n in range(self.info.nodes[graph or 0]):
                 yield offset+n, str(n)
 
-    def _labeling_tensor(self, g_ix=None) -> list:
+    def _labeling_tensor(
+            self,
+            g_ix: int = None
+    ) -> list:
         """ Returns list of labels (not tensors) """
         y = []
         # Read labels
@@ -332,21 +445,29 @@ class CustomDataset(GeneralDataset):
 
         return y
 
-    def _feature_tensor(self, g_ix=None) -> list:
+    def _feature_tensor(
+            self,
+            g_ix: int = None
+    ) -> list:
         """ Returns list of features (not tensors) for graph g_ix.
         """
         features = self.dataset_var_config.features  # dict about attributes construction
         nodes_onehot = "str_g" in features and features["str_g"] == "one_hot"
 
         # Read attributes
-        def one_hot(x, values):
+        def one_hot(
+                x: int,
+                values: list
+        ) -> list:
             res = [0] * len(values)
             for ix, v in enumerate(values):
                 if x == v:
                     res[ix] = 1
                     return res
 
-        def as_is(x):
+        def as_is(
+                x
+        ) -> list:
             return x if isinstance(x, list) else [x]
 
         # TODO other encoding types from Kirill
