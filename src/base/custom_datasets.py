@@ -36,41 +36,41 @@ class CustomDataset(
     @property
     def node_attributes_dir(
             self
-    ):
+    ) -> Path:
         """ Path to dir with node attributes. """
         return self.root_dir / 'raw' / (self.name + '.node_attributes')
 
     @property
     def edge_attributes_dir(
             self
-    ):
+    ) -> Path:
         """ Path to dir with edge attributes. """
         return self.root_dir / 'raw' / (self.name + '.edge_attributes')
 
     @property
     def labels_dir(
             self
-    ):
+    ) -> Path:
         """ Path to dir with labels. """
         return self.root_dir / 'raw' / (self.name + '.labels')
 
     @property
     def edges_path(
             self
-    ):
+    ) -> Path:
         """ Path to file with edge list. """
         return self.root_dir / 'raw' / (self.name + '.ij')
 
     @property
     def edge_index_path(
             self
-    ):
+    ) -> Path:
         """ Path to dir with labels. """
         return self.root_dir / 'raw' / (self.name + '.edge_index')
 
     def check_validity(
             self
-    ):
+    ) -> None:
         """ Check that dataset files (graph and attributes) are valid and consistent with .info.
         """
         # Assuming info is OK
@@ -159,6 +159,7 @@ class CustomDataset(
             return
 
         self.dataset_var_data = None
+        self.stats.update_var_config()
         self.dataset_var_config = dataset_var_config
         self.dataset = LocalDataset(self.results_dir, process_func=self._create_ptg)
 
@@ -178,6 +179,7 @@ class CustomDataset(
                     with open(self.node_attributes_dir / a, 'r') as f:
                         attr_node_attrs[a] = json.load(f)
 
+                # FIXME misha - for single graph [0]
                 edges = self.edge_index
                 node_map = (lambda i: str(self.node_map[i])) if self.node_map else lambda i: str(i)
 
@@ -223,8 +225,8 @@ class CustomDataset(
                         pearson_corr[i][j] = min(1, max(-1, pc))
 
                 return {'attributes': attrs, 'correlations': pearson_corr.tolist()}
-        else:
-            return super()._compute_stat(stat)
+
+        raise NotImplementedError()
 
     def _compute_dataset_data(
             self
@@ -420,7 +422,7 @@ class CustomDataset(
 
     def _labeling_tensor(
             self,
-            g_ix=None
+            g_ix: int = None
     ) -> list:
         """ Returns list of labels (not tensors) """
         y = []
@@ -445,7 +447,7 @@ class CustomDataset(
 
     def _feature_tensor(
             self,
-            g_ix=None
+            g_ix: int = None
     ) -> list:
         """ Returns list of features (not tensors) for graph g_ix.
         """
