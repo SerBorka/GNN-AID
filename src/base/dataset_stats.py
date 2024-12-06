@@ -117,7 +117,7 @@ class DatasetStats:
             self,
             stat: str,
             value: Union[int, float, dict, str]
-    ):
+    ) -> None:
         """ Set statistics to a specified value and save to file.
         """
         assert stat in DatasetStats.all_stats
@@ -129,7 +129,7 @@ class DatasetStats:
     def remove(
             self,
             stat: str
-    ):
+    ) -> None:
         """ Remove statistics from dict and file.
         """
         if stat in self.stats:
@@ -140,7 +140,7 @@ class DatasetStats:
 
     def clear_all_stats(
             self
-    ):
+    ) -> None:
         """ Remove all stats. E.g. the graph has changed.
         """
         for s in DatasetStats.all_stats:
@@ -148,7 +148,7 @@ class DatasetStats:
 
     def update_var_config(
             self
-    ):
+    ) -> None:
         """ Remove var stats from dict since dataset config has changed.
         """
         for s in DatasetStats.var_stats:
@@ -158,7 +158,7 @@ class DatasetStats:
     def _compute(
             self,
             stat: str
-    ):
+    ) -> None:
         """ Compute statistics for a single graph.
         Result could be: a number, a string, a distribution, a dict of ones.
         """
@@ -255,7 +255,7 @@ class DatasetStats:
     def _compute_multi(
             self,
             stat: str
-    ):
+    ) -> None:
         """ Compute statistics for a multiple-graphs dataset.
         Result could be: a number, a string, a distribution, a dict of ones.
         """
@@ -286,7 +286,7 @@ class DatasetStats:
 
 def list_to_hist(
         a_list: list
-):
+) -> dict:
     """ Convert a list of integers/floats to a frequency histogram, return it as a dict
     """
     return {k: v for k, v in Counter(a_list).most_common()}

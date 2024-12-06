@@ -23,7 +23,7 @@ class AttrInfo:
 
     @staticmethod
     def vk_attr(
-    ):
+    ) -> dict:
         vk_dict = {
             ('age',): list(range(0, len(AGE_GROUPS) + 1)),
             ('sex',): [1, 2],
@@ -175,7 +175,7 @@ class VKDataset(
 
     def _compute_dataset_data(
             self
-    ):
+    ) -> None:
         """ Get DatasetData for VK graph
         """
         super()._compute_dataset_data()

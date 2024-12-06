@@ -2,6 +2,7 @@ import json
 import logging
 import multiprocessing
 from multiprocessing import Pipe
+from multiprocessing.connection import Connection
 
 from flask import Flask, render_template, request
 from flask_socketio import SocketIO, emit
@@ -20,7 +21,11 @@ socketio = SocketIO(app, async_mode='threading', message_queue='redis://', cors_
 active_sessions = {}  # {session Id -> sid, process, conn}
 
 
-def worker_process(process_id, conn, sid):
+def worker_process(
+        process_id: str,
+        conn: Connection,
+        sid: str
+) -> None:
     print(f"Process {process_id} started")
     # TODO problem is each process sends data to main process then to frontend.
     #  Easier to send it directly to url
@@ -158,7 +163,8 @@ def worker_process(process_id, conn, sid):
 
 
 @socketio.on('connect')
-def handle_connect():
+def handle_connect(
+) -> None:
     # FIXME create process not when socket connects but when a new tab is open
     session_id = str(uuid.uuid4())
     print('handle_connect', session_id, request.sid)
@@ -175,7 +181,8 @@ def handle_connect():
 
 
 @socketio.on('disconnect')
-def handle_disconnect():
+def handle_disconnect(
+) -> None:
     print('handle_disconnect from some websocket')
 
     for session_id, (sid, process, parent_conn) in active_sessions.items():
@@ -186,29 +193,34 @@ def handle_disconnect():
 
 
 @app.route('/')
-def home():
+def home(
+) -> str:
     # FIXME ?
     DataInfo.refresh_all_data_info()
     return render_template('analysis.html')
 
 
 @app.route('/analysis')
-def analysis():
+def analysis(
+) -> str:
     return render_template('analysis.html')
 
 
 @app.route('/interpretation')
-def interpretation():
+def interpretation(
+) -> str:
     return render_template('interpretation.html')
 
 
 @app.route('/defense')
-def defense():
+def defense(
+) -> str:
     return render_template('defense.html')
 
 
 @app.route("/drop", methods=['GET', 'POST'])
-def drop():
+def drop(
+) -> str:
     if request.method == 'POST':
         session_id = json.loads(request.data)['sessionId']
         if session_id in active_sessions:
@@ -217,7 +229,9 @@ def drop():
         return ''
 
 
-def stop_session(session_id):
+def stop_session(
+        session_id: str
+):
     _, process, conn = active_sessions[session_id]
 
     # Stop corresponding process
@@ -240,7 +254,8 @@ def stop_session(session_id):
 
 
 @app.route("/ask", methods=['GET', 'POST'])
-def storage():
+def storage(
+) -> str:
     if request.method == 'POST':
         session_id = request.form.get('sessionId')
         assert session_id in active_sessions
@@ -256,7 +271,8 @@ def storage():
 
 
 @app.route("/block", methods=['GET', 'POST'])
-def block():
+def block(
+) -> str:
     if request.method == 'POST':
         session_id = request.form.get('sessionId')
         assert session_id in active_sessions
@@ -268,7 +284,9 @@ def block():
 
 
 @app.route("/<url>", methods=['GET', 'POST'])
-def url(url):
+def url(
+        url: str
+) -> str:
     assert url in ['dataset', 'model', 'explainer']
     if request.method == 'POST':
         sid = request.form.get('sessionId')

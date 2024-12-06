@@ -7,7 +7,7 @@ from typing import Union
 import torch
 import torch_geometric
 from torch import default_generator, randperm
-from torch_geometric.data import Dataset, InMemoryDataset
+from torch_geometric.data import Dataset, InMemoryDataset, Data
 
 from aux.configs import DatasetConfig, DatasetVarConfig, ConfigPattern
 from aux.custom_decorators import timing_decorator
@@ -123,7 +123,7 @@ class DatasetInfo:
     @staticmethod
     def induce(
             dataset: Dataset
-    ):
+    ) -> object:
         """ Induce metainfo from a given PTG dataset.
         """
         res = DatasetInfo()
@@ -144,7 +144,7 @@ class DatasetInfo:
     @staticmethod
     def read(
             path: Union[str, Path]
-    ):
+    ) -> object:
         """ Read info from a file. """
         with path.open('r') as f:
             a_dict = json.load(f)
@@ -346,7 +346,7 @@ class GeneralDataset:
     @property
     def root_dir(
             self
-    ):
+    ) -> Path:
         """ Dataset root directory with folders 'raw' and 'prepared'. """
         # FIXME Misha, dataset_prepared_dir return path and files_paths not only path
         return Declare.dataset_root_dir(self.dataset_config)[0]
@@ -354,7 +354,7 @@ class GeneralDataset:
     @property
     def results_dir(
             self
-    ):
+    ) -> Path:
         """ Path to 'prepared/../' folder where tensor data is stored. """
         # FIXME Misha, dataset_prepared_dir return path and files_paths not only path
         return Path(Declare.dataset_prepared_dir(self.dataset_config, self.dataset_var_config)[0])
@@ -362,46 +362,46 @@ class GeneralDataset:
     @property
     def raw_dir(
             self
-    ):
+    ) -> Path:
         """ Path to 'raw/' folder where raw data is stored. """
         return self.root_dir / 'raw'
 
     @property
     def api_path(
             self
-    ):
+    ) -> Path:
         """ Path to '.api' file. Could be not present. """
         return self.root_dir / '.api'
 
     @property
     def info_path(
             self
-    ):
+    ) -> Path:
         """ Path to '.info' file. """
         return self.root_dir / 'raw' / '.info'
 
     @property
     def data(
             self
-    ):
+    ) -> Data:
         return self.dataset._data
 
     @property
     def num_classes(
             self
-    ):
+    ) -> int:
         return self.dataset.num_classes
 
     @property
     def num_node_features(
             self
-    ):
+    ) -> int:
         return self.dataset.num_node_features
 
     @property
     def labels(
             self
-    ):
+    ) -> torch.Tensor:
         if self._labels is None:
             # NOTE: this is a copy from torch_geometric.data.dataset v=2.3.1
             from torch_geometric.data.dataset import _get_flattened_data_list
@@ -428,7 +428,7 @@ class GeneralDataset:
     def build(
             self,
             dataset_var_config: Union[ConfigPattern, DatasetVarConfig]
-    ):
+    ) -> None:
         """ Create node feature tensors from attributes based on dataset_var_config.
         """
         raise NotImplementedError()
@@ -589,7 +589,7 @@ class GeneralDataset:
     def get_stat(
             self,
             stat: str
-    ):
+    ) -> Union[int, float, dict, str]:
         """ Get statistics.
         """
         return self.stats.get(stat)
@@ -597,15 +597,15 @@ class GeneralDataset:
     def _compute_stat(
             self,
             stat: str
-    ):
+    ) -> None:
         """ Compute a non-standard statistics.
         """
-        # Should bw defined in a subclass
+        # Should be defined in a subclass
         raise NotImplementedError()
 
     def is_one_hot_able(
             self
-    ):
+    ) -> bool:
         """ Return whether features are 1-hot encodings. If yes, nodes can be colored.
         """
         assert self.dataset_var_config
@@ -942,7 +942,7 @@ def merge_directories(
         source_dir: Union[Path, str],
         destination_dir: Union[Path, str],
         remove_source: bool = False
-):
+) -> None:
     """
     Merge source directory into destination directory, replacing existing files.
 

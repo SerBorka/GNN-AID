@@ -1,3 +1,6 @@
+from typing import Any
+
+from flask_socketio import SocketIO
 import json
 from collections import deque
 from threading import Thread
@@ -9,10 +12,15 @@ from aux.utils import SAVE_DIR_STRUCTURE_PATH
 
 
 class WebInterfaceError(Exception):
-    def __init__(self, *args):
+    def __init__(
+            self,
+            *args
+    ):
         self.message = args[0] if args else None
 
-    def __str__(self):
+    def __str__(
+            self
+    ):
         if self.message:
             return f"WebInterfaceError: {self.message}"
         else:
@@ -20,18 +28,29 @@ class WebInterfaceError(Exception):
 
 
 class Queue(deque):
-    def __init__(self, *args, **kwargs):
+    def __init__(
+            self,
+            *args,
+            **kwargs
+    ):
         super(Queue, self).__init__(*args, **kwargs)
         self.last_obl = True
 
-    def push(self, obj, id, obligate):
+    def push(
+            self,
+            obj: object,
+            id: int,
+            obligate: bool
+    ) -> None:
         # If last is not obligate - replace it
         if len(self) > 0 and self.last_obl is False:
             self.pop()
         super(Queue, self).append((obj, id))
         self.last_obl = obligate
 
-    def get_first_id(self):
+    def get_first_id(
+            self
+    ) -> int:
         if len(self) > 0:
             obj, id = self.popleft()
             self.appendleft((obj, id))
@@ -46,9 +65,12 @@ class SocketConnect:
 
     # max_packet_size = 1024**2  # 1MB limit by default
 
-    def __init__(self, socket=None, sid=None):
+    def __init__(
+            self,
+            socket: SocketIO = None,
+            sid: str = None
+    ):
         if socket is None:
-            from flask_socketio import SocketIO
             self.socket = SocketIO(message_queue='redis://')
         else:
             self.socket = socket
@@ -59,9 +81,16 @@ class SocketConnect:
         self.sleep_time = 0.5
         self.active = False  # True when sending cycle is running
 
-    def send(self, block, msg, func=None, tag='all', obligate=True):
+    def send(
+            self,
+            block: str,
+            msg: dict,
+            func: str = None,
+            tag: str = 'all',
+            obligate: bool = True
+    ):
         """ Send info message to frontend.
-        :param dst: destination, e.g. "" (to console), "model", "explainer"
+        :param block: destination block, e.g. "" (to console), "model", "explainer"
         :param msg: dict
         :param tag: keep messages in a separate queue with this tag, all but last unobligate
          messages will be squashed
@@ -82,7 +111,9 @@ class SocketConnect:
         if not self.active:
             Thread(target=self._cycle, args=()).start()
 
-    def _send(self):
+    def _send(
+            self
+    ) -> None:
         """ Send leftmost actual data element from the queue. """
         data = None
         # Find actual data elem
@@ -102,7 +133,9 @@ class SocketConnect:
         self.sleep_time = 0.5 * size / 25e6 * 10
         print('sent data', id, tag, 'of len=', size, 'sleep', self.sleep_time)
 
-    def _cycle(self):
+    def _cycle(
+            self
+    ) -> None:
         """ Send messages from the queue until it is empty. """
         self.active = True
         while True:
@@ -113,7 +146,9 @@ class SocketConnect:
             sleep(self.sleep_time)
 
 
-def json_dumps(object):
+def json_dumps(
+        object
+) -> str:
     """ Dump an object to JSON properly handling values "-Infinity", "Infinity", and "NaN"
     """
     string = json.dumps(object, ensure_ascii=False)
@@ -123,12 +158,16 @@ def json_dumps(object):
         .replace('Infinity', '"Infinity"')
 
 
-def json_loads(string):
+def json_loads(
+        string: str
+) -> Any:
     """ Parse JSON string properly handling values "-Infinity", "Infinity", and "NaN"
     """
     c = {"-Infinity": -np.inf, "Infinity": np.inf, "NaN": np.nan}
 
-    def parser(arg):
+    def parser(
+            arg
+    ):
         if isinstance(arg, dict):
             for key, value in arg.items():
                 if isinstance(value, str) and value in c:
@@ -138,7 +177,9 @@ def json_loads(string):
     return json.loads(string, object_hook=parser)
 
 
-def get_config_keys(object_type):
+def get_config_keys(
+        object_type: str
+) -> list:
     """ Get a list of keys for a config describing an object of the specified type.
     """
     with open(SAVE_DIR_STRUCTURE_PATH) as f:

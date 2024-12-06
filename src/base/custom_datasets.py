@@ -36,41 +36,41 @@ class CustomDataset(
     @property
     def node_attributes_dir(
             self
-    ):
+    ) -> Path:
         """ Path to dir with node attributes. """
         return self.root_dir / 'raw' / (self.name + '.node_attributes')
 
     @property
     def edge_attributes_dir(
             self
-    ):
+    ) -> Path:
         """ Path to dir with edge attributes. """
         return self.root_dir / 'raw' / (self.name + '.edge_attributes')
 
     @property
     def labels_dir(
             self
-    ):
+    ) -> Path:
         """ Path to dir with labels. """
         return self.root_dir / 'raw' / (self.name + '.labels')
 
     @property
     def edges_path(
             self
-    ):
+    ) -> Path:
         """ Path to file with edge list. """
         return self.root_dir / 'raw' / (self.name + '.ij')
 
     @property
     def edge_index_path(
             self
-    ):
+    ) -> Path:
         """ Path to dir with labels. """
         return self.root_dir / 'raw' / (self.name + '.edge_index')
 
     def check_validity(
             self
-    ):
+    ) -> None:
         """ Check that dataset files (graph and attributes) are valid and consistent with .info.
         """
         # Assuming info is OK

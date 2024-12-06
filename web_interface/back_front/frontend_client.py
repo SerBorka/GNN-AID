@@ -1,4 +1,5 @@
 import json
+from typing import Union
 
 from aux.utils import FUNCTIONS_PARAMETERS_PATH, FRAMEWORK_PARAMETERS_PATH, MODULES_PARAMETERS_PATH, \
     EXPLAINERS_INIT_PARAMETERS_PATH, EXPLAINERS_LOCAL_RUN_PARAMETERS_PATH, \
@@ -26,7 +27,9 @@ class FrontendClient:
         'F': None, 'FW': None, 'M': None, 'EI': None, 'ER': None, 'O': None}
 
     @staticmethod
-    def get_parameters(type):
+    def get_parameters(
+            type: str
+    ) -> Union[dict, None]:
         """
         """
         if type not in FrontendClient.parameters:
@@ -45,7 +48,10 @@ class FrontendClient:
 
         return FrontendClient.parameters[type]
 
-    def __init__(self, sid):
+    def __init__(
+            self,
+            sid: str
+    ):
         self.sid = sid  # socket ID
         self.socket = SocketConnect(sid=sid)
 
@@ -91,7 +97,12 @@ class FrontendClient:
     #     """
     #     self.diagram.drop()
 
-    def request_block(self, block, func, params: dict = None):
+    def request_block(
+            self,
+            block: str,
+            func: str,
+            params: dict = None
+    ) -> object:
         """
         :param block: name of block
         :param func: block function to call
