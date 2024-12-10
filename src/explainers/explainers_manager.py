@@ -1,8 +1,11 @@
 import json
+from socket import SocketIO
+from typing import Union, Type
 
-from aux.configs import ExplainerInitConfig, ExplainerModificationConfig, CONFIG_OBJ, ConfigPattern
+from aux.configs import ExplainerInitConfig, ExplainerModificationConfig, CONFIG_OBJ, ConfigPattern, ExplainerRunConfig
 from aux.declaration import Declare
 from aux.utils import EXPLAINERS_INIT_PARAMETERS_PATH
+from base.datasets_processing import GeneralDataset
 from explainers.explainer import Explainer, ProgressBar
 from explainers.explainer_metrics import NodesExplainerMetric
 
@@ -36,12 +39,14 @@ class FrameworkExplainersManager:
 
     def __init__(
             self,
-            dataset, gnn_manager,
-            init_config=None,
+            dataset: GeneralDataset,
+            gnn_manager: Type,
+            init_config: Union[ConfigPattern, ExplainerInitConfig] = None,
             explainer_name: str = None,
-            modification_config: ExplainerModificationConfig = None,
+            modification_config: Union[ConfigPattern, ExplainerModificationConfig] = None,
             device: str = None
     ):
+        self.files_paths = None
         if device is None:
             device = "cpu"
         self.device = device
@@ -107,20 +112,27 @@ class FrameworkExplainersManager:
             self.gen_dataset, model=self.gnn,
             device=self.device,
             # device=device("cpu"),
-            **init_kwargs)
+            **init_kwargs
+        )
 
         self.explanation = None
         self.explanation_data = None
         self.running = False
 
-    def save_explanation(self, run_config):
+    def save_explanation(
+            self,
+            run_config: Union[ConfigPattern, ExplainerRunConfig]
+    ) -> None:
         """ Save explanation to file.
         """
         self.explanation_result_path(run_config)
         self.explainer.save(self.explainer_result_file_path)
         print("Saved explanation")
 
-    def load_explanation(self, run_config):
+    def load_explanation(
+            self,
+            run_config: Union[ConfigPattern, ExplainerRunConfig]
+    ) -> dict:
         if self.modification_config.explainer_ver_ind is None:
             raise RuntimeError("explainer_ver_ind should not be None")
         self.explanation_result_path(run_config)
@@ -133,7 +145,10 @@ class FrameworkExplainersManager:
                                     f"{self.explainer_result_file_path}")
         return explanation
 
-    def explanation_result_path(self, run_config):
+    def explanation_result_path(
+            self,
+            run_config: Union[ConfigPattern, ExplainerRunConfig]
+    ) -> None:
         # TODO pass configs
         self.explainer_result_file_path, self.files_paths = Declare.explanation_file_path(
             models_path=self.gnn_model_path,
@@ -143,7 +158,11 @@ class FrameworkExplainersManager:
             explainer_run_kwargs=run_config.to_saveable_dict(),
         )
 
-    def conduct_experiment(self, run_config, socket=None):
+    def conduct_experiment(
+            self,
+            run_config: Union[ConfigPattern, ExplainerRunConfig],
+            socket: SocketIO = None
+    ) -> dict:
         """
         Runs the full cycle of the interpretation experiment
         """
@@ -168,7 +187,8 @@ class FrameworkExplainersManager:
             # TODO what if save_explanation_flag=False?
             if self.save_explanation_flag:
                 self.save_explanation(run_config)
-                self.model_manager.save_model_executor()
+                path = self.model_manager.save_model_executor()
+                self.gen_dataset.save_train_test_mask(path)
         except Exception as e:
             if socket:
                 socket.send("er", {"status": "FAILED"})
@@ -176,7 +196,12 @@ class FrameworkExplainersManager:
 
         return result
 
-    def evaluate_metrics(self, target_nodes_indices, run_config, socket=None):
+    def evaluate_metrics(
+            self,
+            target_nodes_indices: list,
+            run_config: Union[ConfigPattern, ExplainerRunConfig, None] = None,
+            socket: SocketIO = None
+    ) -> dict:
         """
         Evaluates explanation metrics between given node indices
         """
@@ -214,7 +239,10 @@ class FrameworkExplainersManager:
         return result
 
     @staticmethod
-    def available_explainers(gen_dataset, model_manager):
+    def available_explainers(
+            gen_dataset: GeneralDataset,
+            model_manager: Type
+    ) -> list:
         """ Get a list of explainers applicable for current model and dataset.
         """
         return [
