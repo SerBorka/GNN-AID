@@ -122,8 +122,6 @@ class GNNGuard(PoisonDefender):
         self.droplearn = nn.Linear(2, 1)
         self.beta = nn.Parameter(torch.rand(1))
 
-
-
     def defense(self, gen_dataset):
         super().defense(gen_dataset=gen_dataset)
         if self.model is None:
@@ -184,7 +182,6 @@ class GNNGuard(PoisonDefender):
             gen_dataset.data.edge_weights = adj_value
             # print(adj_value)
         return gen_dataset
-
 
     def att_coef(self, gen_dataset, k=-1):
         x = gen_dataset.data.x
