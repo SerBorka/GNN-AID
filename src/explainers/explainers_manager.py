@@ -176,15 +176,10 @@ class FrameworkExplainersManager:
 
         return result
 
-    def evaluate_metrics(self, target_nodes_indices, run_config=None, socket=None):
+    def evaluate_metrics(self, target_nodes_indices, run_config, socket=None):
         """
         Evaluates explanation metrics between given node indices
         """
-        # TODO: Refactor this method for framework design
-        if run_config:
-            params = getattr(getattr(run_config, CONFIG_OBJ).kwargs, CONFIG_OBJ).to_dict()
-        else:
-            params = {}
         self.explainer.pbar = ProgressBar(
             socket, "er", desc=f'{self.explainer.name} explaining metrics calculation'
         )  # progress bar
@@ -194,10 +189,8 @@ class FrameworkExplainersManager:
                 raise NotImplementedError("Explanation metrics for graph classification")
             else:
                 explanation_metrics_calculator = NodesExplainerMetric(
-                    model=self.gnn,
-                    graph=self.gen_dataset.data,
-                    explainer=self.explainer,
-                    kwargs_dict=params
+                    self,
+                    run_config
                 )
                 result = explanation_metrics_calculator.evaluate(target_nodes_indices)
             print("Explanation metrics are ready")

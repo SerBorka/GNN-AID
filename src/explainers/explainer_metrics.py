@@ -2,14 +2,19 @@ import numpy as np
 import torch
 from torch_geometric.utils import subgraph
 
+from aux.configs import CONFIG_OBJ
 from aux.custom_decorators import timing_decorator
 
 
 class NodesExplainerMetric:
-    def __init__(self, model, graph, explainer, kwargs_dict):
-        self.model = model
-        self.explainer = explainer
-        self.graph = graph
+    def __init__(self, explainers_manager, run_config):
+        params = getattr(getattr(run_config, CONFIG_OBJ).kwargs, CONFIG_OBJ).to_dict()
+        self.run_config = run_config
+        self.explainers_manager = explainers_manager
+        self.model = explainers_manager.gnn
+        self.gen_dataset = explainers_manager.gen_dataset
+        self.explainer = explainers_manager.explainer
+        self.graph = explainers_manager.gen_dataset.data
         self.x = self.graph.x
         self.edge_index = self.graph.edge_index
         self.kwargs_dict = {
@@ -18,13 +23,16 @@ class NodesExplainerMetric:
             "stability_node_removal_percent": 0.05,
             "consistency_num_explanation_runs": 10
         }
-        self.kwargs_dict.update(kwargs_dict)
+        self.kwargs_dict.update(params)
         self.nodes_explanations = {}  # explanations cache. node_ind -> explanation
+        self.explanation_path = self.explainers_manager.explanation_result_path(self.run_config)
+
         self.dictionary = {
         }
         print(f"NodesExplainerMetric initialized with kwargs:\n{self.kwargs_dict}")
 
     def evaluate(self, target_nodes_indices):
+
         sparsity = []
         stability = []
         consistency = []
@@ -68,8 +76,16 @@ class NodesExplainerMetric:
     @timing_decorator
     def calculate_sparsity(self, node_ind):
         explanation = self.get_explanation(node_ind)
-        sparsity = 1 - (len(explanation["data"]["nodes"]) + len(explanation["data"]["edges"])) / (
-                len(self.x) + len(self.edge_index))
+        num = 0
+        den = 0
+        if explanation["data"]["nodes"]:
+            num += explanation["data"]["nodes"]
+            den += self.x.shape[0]
+        if explanation["data"]["edges"]:
+            num += explanation["data"]["edges"]
+            den += self.edge_index.shape[1]
+
+        sparsity = 1 - num / den
         print(f"Sparsity calculation for node id {node_ind} completed.")
         return sparsity
 
@@ -118,6 +134,7 @@ class NodesExplainerMetric:
     def calculate_explanation(self, x, edge_index, node_idx, **kwargs):
         # print(f"Processing explanation calculation for node id {node_idx}.")
         # self.explainer.run('local', {'element_idx': node_idx}, finalize=True)
+
         self.explainer.evaluate_tensor_graph(x, edge_index, node_idx, **kwargs)
         # print(f"Explanation calculation for node id {node_idx} completed.")
         return self.explainer.explanation.dictionary
