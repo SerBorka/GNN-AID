@@ -50,15 +50,17 @@ class NodesExplainerMetric:
             json.dump(self.dictionary, f, indent=2)
 
     def evaluate(self, node_id_to_explainer_run_config: dict):
-        self.get_explanation_path(list(node_id_to_explainer_run_config.values())[0])
+        self.node_id_to_explainer_run_config = node_id_to_explainer_run_config
+        target_nodes_indices = sorted(node_id_to_explainer_run_config.keys())
+
+        self.get_explanations(target_nodes_indices[0])
         if os.path.exists(self.explanation_metrics_path):
             with open(self.explanation_metrics_path, "r") as f:
                 self.dictionary = json.load(f)
-        self.node_id_to_explainer_run_config = node_id_to_explainer_run_config
+
         sparsity = []
         stability = []
         consistency = []
-        target_nodes_indices = sorted(node_id_to_explainer_run_config.keys())
         for node_ind in target_nodes_indices:
             print(f"Processing explanation metrics calculation for node id {node_ind}.")
             self.get_explanations(node_ind)
