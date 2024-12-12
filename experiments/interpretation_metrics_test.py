@@ -19,6 +19,7 @@ from defense.JaccardDefense import jaccard_def
 from attacks.metattack import meta_gradient_attack
 from defense.GNNGuard import gnnguard
 
+
 def load_result_dict(path):
     if os.path.exists(path):
         with open(path, "r") as file:
@@ -41,6 +42,23 @@ def get_model_by_name(model_name, dataset):
     return model_configs_zoo(dataset=dataset, model_name=model_name)
 
 
+def explainer_run_config_for_node(explainer_name, node_ind, explainer_kwargs=None):
+    if explainer_kwargs is None:
+        explainer_kwargs = {}
+    explainer_kwargs["element_idx"] = node_ind
+    return ConfigPattern(
+        _config_class="ExplainerRunConfig",
+        _config_kwargs={
+            "mode": "local",
+            "kwargs": {
+                "_class_name": explainer_name,
+                "_import_path": EXPLAINERS_LOCAL_RUN_PARAMETERS_PATH,
+                "_config_class": "Config",
+                "_config_kwargs": explainer_kwargs
+            }
+        }
+    )
+
 @timing_decorator
 def run_interpretation_test(dataset_full_name, model_name):
     steps_epochs = 10
@@ -50,7 +68,6 @@ def run_interpretation_test(dataset_full_name, model_name):
         "stability_feature_change_percent": 0.05,
         "stability_node_removal_percent": 0.05,
         "consistency_num_explanation_runs": 1,
-        "max_nodes": 1
     }
     # steps_epochs = 200
     # num_explaining_nodes = 30
@@ -60,8 +77,12 @@ def run_interpretation_test(dataset_full_name, model_name):
     #     "stability_node_removal_percent": 0.05,
     #     "consistency_num_explanation_runs": 5
     # }
-    # explainer_name = 'SubgraphX'
-    explainer_name = 'GNNExplainer(torch-geom)'
+    explainer_kwargs_by_explainer_name = {
+        'GNNExplainer(torch-geom)': {},
+        'SubgraphX': {"max_nodes": 5},
+    }
+    explainer_name = 'SubgraphX'
+    # explainer_name = 'GNNExplainer(torch-geom)'
     dataset_key_name = "_".join(dataset_full_name)
     metrics_path = root_dir / "experiments" / "explainers_metrics"
     dataset_metrics_path = metrics_path / f"{model_name}_{dataset_key_name}_{explainer_name}_metrics.json"
@@ -70,8 +91,6 @@ def run_interpretation_test(dataset_full_name, model_name):
         full_name=dataset_full_name,
         dataset_ver_ind=0
     )
-
-    # NodesExplainerMetric.perturb_graph(data.x, data.edge_index, 0, 0.05, 1)
 
     restart_experiment = True
     if restart_experiment:
@@ -91,86 +110,41 @@ def run_interpretation_test(dataset_full_name, model_name):
             result_dict["num_nodes"] = num_explaining_nodes
         node_indices = result_dict["nodes"]
         explaining_metrics_params = result_dict["metrics_params"]
-        num_explaining_nodes = result_dict["num_nodes"]
 
-    unprotected_key = "Unprotected"
-    if unprotected_key not in result_dict:
-        print(f"Calculation of explanation metrics with defence: {unprotected_key} started.")
-        metrics = calculate_unprotected_metrics(
-            dataset_full_name,
-            explainer_name,
-            steps_epochs,
-            num_explaining_nodes,
-            explaining_metrics_params,
-            dataset,
-            node_indices,
-            model_name
-        )
-        result_dict[unprotected_key] = metrics
-        print(f"Calculation of explanation metrics with defence: {unprotected_key} completed. Metrics:\n{metrics}")
-        save_result_dict(dataset_metrics_path, result_dict)
+    explainer_kwargs = explainer_kwargs_by_explainer_name[explainer_name]
+    node_id_to_explainer_run_config = \
+        {node_id: explainer_run_config_for_node(explainer_name, node_id, explainer_kwargs) for node_id in node_indices}
 
-    jaccard_key = "Jaccard_defence"
-    if jaccard_key not in result_dict:
-        print(f"Calculation of explanation metrics with defence: {jaccard_key} started.")
-        metrics = calculate_jaccard_defence_metrics(
-            dataset_full_name,
-            explainer_name,
-            steps_epochs,
-            num_explaining_nodes,
-            explaining_metrics_params,
-            dataset,
-            node_indices,
-            model_name
-        )
-        result_dict[jaccard_key] = metrics
-        print(f"Calculation of explanation metrics with defence: {jaccard_key} completed. Metrics:\n{metrics}")
-        save_result_dict(dataset_metrics_path, result_dict)
+    experiment_name_to_experiment = [
+        ("Unprotected", calculate_unprotected_metrics),
+        ("Jaccard_defence", calculate_jaccard_defence_metrics),
+        ("AdvTraining_defence", calculate_adversial_defence_metrics),
+        ("GNNGuard_defence", calculate_gnnguard_defence_metrics),
+    ]
 
-    adv_training_key = "AdvTraining_defence"
-    if adv_training_key not in result_dict:
-        print(f"Calculation of explanation metrics with defence: {adv_training_key} started.")
-        metrics = calculate_adversial_defence_metrics(
-            dataset_full_name,
-            explainer_name,
-            steps_epochs,
-            num_explaining_nodes,
-            explaining_metrics_params,
-            dataset,
-            node_indices,
-            model_name
-        )
-        result_dict[adv_training_key] = metrics
-        print(f"Calculation of explanation metrics with defence: {adv_training_key} completed. Metrics:\n{metrics}")
-        save_result_dict(dataset_metrics_path, result_dict)
-
-    gnnguard_key = "GNNGuard_defence"
-    if gnnguard_key not in result_dict:
-        print(f"Calculation of explanation metrics with defence: {gnnguard_key} started.")
-        metrics = calculate_adversial_defence_metrics(
-            dataset_full_name,
-            explainer_name,
-            steps_epochs,
-            num_explaining_nodes,
-            explaining_metrics_params,
-            dataset,
-            node_indices,
-            model_name
-        )
-        result_dict[gnnguard_key] = metrics
-        print(f"Calculation of explanation metrics with defence: {gnnguard_key} completed. Metrics:\n{metrics}")
-        save_result_dict(dataset_metrics_path, result_dict)
+    for experiment_name, calculate_fn in experiment_name_to_experiment:
+        if experiment_name not in result_dict:
+            print(f"Calculation of explanation metrics with defence: {experiment_name} started.")
+            metrics = calculate_fn(
+                explainer_name,
+                steps_epochs,
+                explaining_metrics_params,
+                dataset,
+                node_id_to_explainer_run_config,
+                model_name
+            )
+            result_dict[experiment_name] = metrics
+            print(f"Calculation of explanation metrics with defence: {experiment_name} completed. Metrics:\n{metrics}")
+            save_result_dict(dataset_metrics_path, result_dict)
 
 
 @timing_decorator
 def calculate_unprotected_metrics(
-        dataset_full_name,
         explainer_name,
         steps_epochs,
-        num_explaining_nodes,
         explaining_metrics_params,
         dataset,
-        node_indices,
+        node_id_to_explainer_run_config,
         model_name
 ):
     save_model_flag = False
@@ -234,18 +208,6 @@ def calculate_unprotected_metrics(
         _config_class="ExplainerInitConfig",
         _config_kwargs={}
     )
-    explainer_metrics_run_config = ConfigPattern(
-        _config_class="ExplainerRunConfig",
-        _config_kwargs={
-            "mode": "local",
-            "kwargs": {
-                "_class_name": explainer_name,
-                "_import_path": EXPLAINERS_LOCAL_RUN_PARAMETERS_PATH,
-                "_config_class": "Config",
-                "_config_kwargs": explaining_metrics_params,
-            }
-        }
-    )
 
     explainer = FrameworkExplainersManager(
         init_config=explainer_init_config,
@@ -253,19 +215,17 @@ def calculate_unprotected_metrics(
         explainer_name=explainer_name,
     )
 
-    explanation_metrics = explainer.evaluate_metrics(node_indices, explainer_metrics_run_config)
+    explanation_metrics = explainer.evaluate_metrics(node_id_to_explainer_run_config, explaining_metrics_params)
     return explanation_metrics
 
 
 @timing_decorator
 def calculate_jaccard_defence_metrics(
-        dataset_full_name,
         explainer_name,
         steps_epochs,
-        num_explaining_nodes,
         explaining_metrics_params,
         dataset,
-        node_indices,
+        node_id_to_explainer_run_config,
         model_name
 ):
     save_model_flag = False
@@ -308,6 +268,7 @@ def calculate_jaccard_defence_metrics(
     gnn_model_manager.set_poison_defender(poison_defense_config=poison_defense_config)
     warnings.warn("Start training")
     try:
+        raise FileNotFoundError
         print("Loading model executor")
         gnn_model_manager.load_model_executor()
     except FileNotFoundError:
@@ -335,18 +296,6 @@ def calculate_jaccard_defence_metrics(
         _config_class="ExplainerInitConfig",
         _config_kwargs={}
     )
-    explainer_metrics_run_config = ConfigPattern(
-        _config_class="ExplainerRunConfig",
-        _config_kwargs={
-            "mode": "local",
-            "kwargs": {
-                "_class_name": explainer_name,
-                "_import_path": EXPLAINERS_LOCAL_RUN_PARAMETERS_PATH,
-                "_config_class": "Config",
-                "_config_kwargs": explaining_metrics_params,
-            }
-        }
-    )
 
     explainer = FrameworkExplainersManager(
         init_config=explainer_init_config,
@@ -354,19 +303,17 @@ def calculate_jaccard_defence_metrics(
         explainer_name=explainer_name,
     )
 
-    explanation_metrics = explainer.evaluate_metrics(node_indices, explainer_metrics_run_config)
+    explanation_metrics = explainer.evaluate_metrics(node_id_to_explainer_run_config, explaining_metrics_params)
     return explanation_metrics
 
 
 @timing_decorator
 def calculate_adversial_defence_metrics(
-        dataset_full_name,
         explainer_name,
         steps_epochs,
-        num_explaining_nodes,
         explaining_metrics_params,
         dataset,
-        node_indices,
+        node_id_to_explainer_run_config,
         model_name
 ):
     save_model_flag = False
@@ -423,6 +370,7 @@ def calculate_adversial_defence_metrics(
 
     warnings.warn("Start training")
     try:
+        raise FileNotFoundError
         gnn_model_manager.load_model_executor()
         print("Loaded model.")
     except FileNotFoundError:
@@ -449,18 +397,6 @@ def calculate_adversial_defence_metrics(
         _config_class="ExplainerInitConfig",
         _config_kwargs={}
     )
-    explainer_metrics_run_config = ConfigPattern(
-        _config_class="ExplainerRunConfig",
-        _config_kwargs={
-            "mode": "local",
-            "kwargs": {
-                "_class_name": explainer_name,
-                "_import_path": EXPLAINERS_LOCAL_RUN_PARAMETERS_PATH,
-                "_config_class": "Config",
-                "_config_kwargs": explaining_metrics_params,
-            }
-        }
-    )
 
     explainer = FrameworkExplainersManager(
         init_config=explainer_init_config,
@@ -468,19 +404,17 @@ def calculate_adversial_defence_metrics(
         explainer_name=explainer_name,
     )
 
-    explanation_metrics = explainer.evaluate_metrics(node_indices, explainer_metrics_run_config)
+    explanation_metrics = explainer.evaluate_metrics(node_id_to_explainer_run_config, explaining_metrics_params)
     return explanation_metrics
 
 
 @timing_decorator
 def calculate_gnnguard_defence_metrics(
-        dataset_full_name,
         explainer_name,
         steps_epochs,
-        num_explaining_nodes,
         explaining_metrics_params,
         dataset,
-        node_indices,
+        node_id_to_explainer_run_config,
         model_name
 ):
     save_model_flag = False
@@ -527,6 +461,7 @@ def calculate_gnnguard_defence_metrics(
 
     warnings.warn("Start training")
     try:
+        raise FileNotFoundError
         gnn_model_manager.load_model_executor()
         print("Loaded model.")
     except FileNotFoundError:
@@ -553,18 +488,6 @@ def calculate_gnnguard_defence_metrics(
         _config_class="ExplainerInitConfig",
         _config_kwargs={}
     )
-    explainer_metrics_run_config = ConfigPattern(
-        _config_class="ExplainerRunConfig",
-        _config_kwargs={
-            "mode": "local",
-            "kwargs": {
-                "_class_name": explainer_name,
-                "_import_path": EXPLAINERS_LOCAL_RUN_PARAMETERS_PATH,
-                "_config_class": "Config",
-                "_config_kwargs": explaining_metrics_params,
-            }
-        }
-    )
 
     explainer = FrameworkExplainersManager(
         init_config=explainer_init_config,
@@ -572,7 +495,7 @@ def calculate_gnnguard_defence_metrics(
         explainer_name=explainer_name,
     )
 
-    explanation_metrics = explainer.evaluate_metrics(node_indices, explainer_metrics_run_config)
+    explanation_metrics = explainer.evaluate_metrics(node_id_to_explainer_run_config, explaining_metrics_params)
     return explanation_metrics
 
 
@@ -585,7 +508,7 @@ if __name__ == '__main__':
     ]
     datasets = [
         ("single-graph", "Planetoid", 'Cora'),
-        ("single-graph", "Amazon", 'Photo'),
+        # ("single-graph", "Amazon", 'Photo'),
     ]
 
     for dataset_full_name in datasets:
