@@ -91,14 +91,16 @@ def run_interpretation_test(dataset_full_name, model_name):
         full_name=dataset_full_name,
         dataset_ver_ind=0
     )
+    explainer_kwargs = explainer_kwargs_by_explainer_name[explainer_name]
 
-    restart_experiment = True
+    restart_experiment = False
     if restart_experiment:
         node_indices = random.sample(range(dataset.data.x.shape[0]), num_explaining_nodes)
         result_dict = {
             "num_nodes": num_explaining_nodes,
             "nodes": list(node_indices),
-            "metrics_params": explaining_metrics_params
+            "metrics_params": explaining_metrics_params,
+            "explainer_kwargs": explainer_kwargs
         }
         # save_result_dict(dataset_metrics_path, result_dict)
     else:
@@ -108,10 +110,12 @@ def run_interpretation_test(dataset_full_name, model_name):
             result_dict["nodes"] = list(node_indices)
             result_dict["metrics_params"] = explaining_metrics_params
             result_dict["num_nodes"] = num_explaining_nodes
+            result_dict["explainer_kwargs"] = explainer_kwargs
+            save_result_dict(dataset_metrics_path, result_dict)
         node_indices = result_dict["nodes"]
         explaining_metrics_params = result_dict["metrics_params"]
 
-    explainer_kwargs = explainer_kwargs_by_explainer_name[explainer_name]
+
     node_id_to_explainer_run_config = \
         {node_id: explainer_run_config_for_node(explainer_name, node_id, explainer_kwargs) for node_id in node_indices}
 
@@ -147,7 +151,7 @@ def calculate_unprotected_metrics(
         node_id_to_explainer_run_config,
         model_name
 ):
-    save_model_flag = False
+    save_model_flag = True
     device = torch.device('cpu')
 
     data, results_dataset_path = dataset.data, dataset.results_dir
@@ -181,7 +185,6 @@ def calculate_unprotected_metrics(
 
     warnings.warn("Start training")
     try:
-        raise FileNotFoundError
         gnn_model_manager.load_model_executor()
         print("Loaded model.")
     except FileNotFoundError:

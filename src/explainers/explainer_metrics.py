@@ -104,6 +104,7 @@ class NodesExplainerMetric:
         explanation = self.get_explanations(node_ind)[0]
         num = 0
         den = 0
+        # TODO: fix me by NeighborLoader
         if explanation["data"]["nodes"]:
             num += len(explanation["data"]["nodes"])
             den += self.x.shape[0]
