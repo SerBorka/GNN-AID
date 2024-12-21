@@ -5,7 +5,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from torch_geometric.utils import subgraph
+from torch_geometric.utils import subgraph, k_hop_subgraph
 
 from aux.configs import ConfigPattern
 from aux.custom_decorators import timing_decorator
@@ -102,16 +102,16 @@ class NodesExplainerMetric:
     @timing_decorator
     def calculate_sparsity(self, node_ind):
         explanation = self.get_explanations(node_ind)[0]
+        num_hops = self.model.get_num_hops()
+        local_subset, local_edge_index, _, _ = k_hop_subgraph(node_ind, num_hops, self.edge_index, relabel_nodes=False)
         num = 0
         den = 0
-        # TODO: fix me by NeighborLoader
         if explanation["data"]["nodes"]:
             num += len(explanation["data"]["nodes"])
-            den += self.x.shape[0]
+            den += local_subset.shape[0]
         if explanation["data"]["edges"]:
             num += len(explanation["data"]["edges"])
-            den += self.edge_index.shape[1]
-
+            den += local_edge_index.shape[1]
         sparsity = 1 - num / den
         print(f"Sparsity calculation for node id {node_ind} completed.")
         return sparsity
@@ -154,11 +154,11 @@ class NodesExplainerMetric:
     @timing_decorator
     def calculate_consistency(self, node_ind, num_explanation_runs=10):
         print(f"Consistency calculation for node id {node_ind} started.")
-        explanations = self.get_explanations(node_ind, num_explanations=num_explanation_runs+1)
+        explanations = self.get_explanations(node_ind, num_explanations=num_explanation_runs + 1)
         explanation = explanations[0]
         consistency = []
         for ind in range(num_explanation_runs):
-            perturbed_explanation = explanations[ind+1]
+            perturbed_explanation = explanations[ind + 1]
             base_explanation_vector, perturbed_explanation_vector = \
                 NodesExplainerMetric.calculate_explanation_vectors(explanation, perturbed_explanation)
             consistency += [cosine_similarity(base_explanation_vector, perturbed_explanation_vector)]
