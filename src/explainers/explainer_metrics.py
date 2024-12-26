@@ -123,6 +123,11 @@ class NodesExplainerMetric:
         if explanation_data["edges"] and len(explanation_data["nodes"]) != 0:
             num += len(explanation["data"]["edges"])
             den += local_edge_index.shape[1]
+        if explanation_data["features"] and len(explanation_data["features"]) != 0:
+            num += len(explanation_data["features"])
+            den += self.x.shape[1]
+        if den == 0:
+            raise Exception(f"Invalid explanation. No data. Explanation: {explanation}")
         sparsity = 1 - num / den
         print(f"Sparsity calculation for node id {node_ind} completed.")
         return sparsity
