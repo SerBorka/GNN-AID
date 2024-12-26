@@ -2,17 +2,19 @@ import copy
 import json
 import os
 from pathlib import Path
+from typing import Union, Type
 
 import numpy as np
 import torch
 from torch_geometric.utils import subgraph, k_hop_subgraph
 
-from aux.configs import ConfigPattern
+from aux.configs import ConfigPattern, ExplainerRunConfig
 from aux.custom_decorators import timing_decorator
+from base.datasets_processing import GeneralDataset
 
 
 class NodesExplainerMetric:
-    def __init__(self, explainers_manager, explaining_metrics_params=None):
+    def __init__(self, explainers_manager: Type, explaining_metrics_params=None):
         self.node_id_to_explainer_run_config = None
         self.explanation_metrics_path = None
         if explaining_metrics_params is None:
@@ -38,18 +40,18 @@ class NodesExplainerMetric:
         }
         print(f"NodesExplainerMetric initialized with kwargs:\n{self.kwargs_dict}")
 
-    def get_explanation_path(self, run_config):
+    def get_explanation_path(self, run_config: Union[ConfigPattern, ExplainerRunConfig]) -> Path:
         self.explainers_manager.explanation_result_path(run_config)
         explainer_result_file_path, files_paths = \
             self.explainers_manager.explainer_result_file_path, self.explainers_manager.files_paths
         self.explanation_metrics_path = files_paths[0].parent / Path('explanation_metrics.json')
         return explainer_result_file_path
 
-    def save_dictionary(self):
+    def save_dictionary(self) -> None:
         with open(self.explanation_metrics_path, "w") as f:
             json.dump(self.dictionary, f, indent=2)
 
-    def evaluate(self, node_id_to_explainer_run_config: dict):
+    def evaluate(self, node_id_to_explainer_run_config: dict) -> dict:
         self.node_id_to_explainer_run_config = node_id_to_explainer_run_config
         target_nodes_indices = sorted(node_id_to_explainer_run_config.keys())
 
@@ -84,7 +86,10 @@ class NodesExplainerMetric:
         return self.dictionary
 
     @timing_decorator
-    def calculate_fidelity(self, target_nodes_indices):
+    def calculate_fidelity(
+            self,
+            target_nodes_indices: list
+    ) -> list[int]:
         original_answer = self.model.get_answer(self.x, self.edge_index)
         same_answers_count = []
         for node_ind in target_nodes_indices:
@@ -100,16 +105,22 @@ class NodesExplainerMetric:
         return same_answers_count
 
     @timing_decorator
-    def calculate_sparsity(self, node_ind):
+    def calculate_sparsity(
+            self,
+            node_ind: int
+    ) -> float:
         explanation = self.get_explanations(node_ind)[0]
+        if "data" not in explanation:
+            raise Exception(f"Invalid explanation. No data. Explanation: {explanation}")
+        explanation_data = explanation["data"]
         num_hops = self.model.get_num_hops()
         local_subset, local_edge_index, _, _ = k_hop_subgraph(node_ind, num_hops, self.edge_index, relabel_nodes=False)
         num = 0
         den = 0
-        if explanation["data"]["nodes"]:
+        if explanation_data["nodes"] and len(explanation_data["nodes"]) != 0:
             num += len(explanation["data"]["nodes"])
             den += local_subset.shape[0]
-        if explanation["data"]["edges"]:
+        if explanation_data["edges"] and len(explanation_data["nodes"]) != 0:
             num += len(explanation["data"]["edges"])
             den += local_edge_index.shape[1]
         sparsity = 1 - num / den
@@ -119,11 +130,11 @@ class NodesExplainerMetric:
     @timing_decorator
     def calculate_stability(
             self,
-            node_ind,
-            graph_perturbations_nums=10,
-            feature_change_percent=0.05,
-            node_removal_percent=0.05
-    ):
+            node_ind: int,
+            graph_perturbations_nums: int = 10,
+            feature_change_percent: float = 0.05,
+            node_removal_percent: float = 0.05
+    ) -> list[float]:
         print(f"Stability calculation for node id {node_ind} started.")
         base_explanation = self.get_explanations(node_ind)[0]
         run_config = self.node_id_to_explainer_run_config[node_ind]
@@ -152,7 +163,11 @@ class NodesExplainerMetric:
         return stability
 
     @timing_decorator
-    def calculate_consistency(self, node_ind, num_explanation_runs=10):
+    def calculate_consistency(
+            self,
+            node_ind: int,
+            num_explanation_runs: int = 10
+    ) -> list[float]:
         print(f"Consistency calculation for node id {node_ind} started.")
         explanations = self.get_explanations(node_ind, num_explanations=num_explanation_runs + 1)
         explanation = explanations[0]
@@ -169,19 +184,14 @@ class NodesExplainerMetric:
         return consistency
 
     @timing_decorator
-    def calculate_explanation(self, run_config, gen_dataset, save_explanation_flag=False):
-        # print(f"Processing explanation calculation for node id {node_idx}.")
-        # self.explainer.run('local', {'element_idx': node_idx}, finalize=True)
-        # self.explainer.evaluate_tensor_graph(x, edge_index, node_idx, **kwargs)
-        # print(f"Explanation calculation for node id {node_idx} completed.")
-        # return self.explainer.explanation.dictionary
+    def calculate_explanation(self, run_config, gen_dataset, save_explanation_flag=False) -> dict:
         return self.explainers_manager.conduct_experiment_by_dataset(
             run_config,
             gen_dataset,
             save_explanation_flag=save_explanation_flag
         )
 
-    def get_explanations(self, node_ind, num_explanations=1):
+    def get_explanations(self, node_ind, num_explanations=1) -> list[dict]:
         node_explanations = []
         for explanation_index in range(num_explanations):
             run_config = self.node_id_to_explainer_run_config[node_ind]
@@ -199,7 +209,7 @@ class NodesExplainerMetric:
         return node_explanations
 
     @staticmethod
-    def parse_explanation(explanation):
+    def parse_explanation(explanation: dict) -> [dict, dict]:
         important_nodes = {
             int(node): float(weight) for node, weight in explanation["data"]["nodes"].items()
         }
@@ -210,7 +220,12 @@ class NodesExplainerMetric:
         return important_nodes, important_edges
 
     @staticmethod
-    def filter_graph_by_explanation(x, edge_index, explanation, target_node):
+    def filter_graph_by_explanation(
+            x: torch.Tensor,
+            edge_index: torch.Tensor,
+            explanation: dict,
+            target_node: int
+    ) -> [torch.Tensor, torch.Tensor, int]:
         important_nodes, important_edges = NodesExplainerMetric.parse_explanation(explanation)
         all_important_nodes = set(important_nodes.keys())
         all_important_nodes.add(target_node)
@@ -228,7 +243,10 @@ class NodesExplainerMetric:
         return new_x, new_edge_index, new_target_node
 
     @staticmethod
-    def calculate_explanation_vectors(base_explanation, perturbed_explanation):
+    def calculate_explanation_vectors(
+            base_explanation: dict,
+            perturbed_explanation: dict
+    ) -> np.array:
         base_important_nodes, base_important_edges = NodesExplainerMetric.parse_explanation(
             base_explanation
         )
@@ -252,7 +270,12 @@ class NodesExplainerMetric:
         return base_explanation_vector, perturbed_explanation_vector
 
     @staticmethod
-    def perturb_graph(gen_dataset, node_ind, feature_change_percent, node_removal_percent):
+    def perturb_graph(
+            gen_dataset: GeneralDataset,
+            node_ind: int,
+            feature_change_percent: float,
+            node_removal_percent: float
+    ) -> GeneralDataset:
         new_dataset = copy.deepcopy(gen_dataset)
         x = new_dataset.data.x
         edge_index = new_dataset.data.edge_index
@@ -279,7 +302,7 @@ class NodesExplainerMetric:
         return new_dataset
 
 
-def process_metric(data):
+def process_metric(data: list[float]) -> dict:
     np_data = np.array(data)
     return {
         "mean": np.mean(np_data),
@@ -288,9 +311,9 @@ def process_metric(data):
     }
 
 
-def cosine_similarity(a, b):
+def cosine_similarity(a: np.array, b: np.array) -> float:
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
 
-def euclidean_distance(a, b):
+def euclidean_distance(a: np.array, b: np.array) -> float:
     return np.linalg.norm(a - b)

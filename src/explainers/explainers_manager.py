@@ -202,7 +202,7 @@ class FrameworkExplainersManager:
             dataset: GeneralDataset,
             socket: SocketIO = None,
             save_explanation_flag=False
-    ):
+    ) -> dict:
         init_kwargs = getattr(self.init_config, CONFIG_OBJ).to_dict()
         if self.explainer_name not in FrameworkExplainersManager.supported_explainers:
             raise ValueError(
@@ -222,7 +222,6 @@ class FrameworkExplainersManager:
         result = self.conduct_experiment(run_config, socket)
         self.save_explanation_flag = old_save_explanation_flag
         return result
-
 
     def evaluate_metrics(
             self,

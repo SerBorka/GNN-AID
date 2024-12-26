@@ -328,17 +328,6 @@ class SubgraphXExplainer(Explainer):
                 node_idx=idx, **kwargs)
         self.pbar.close()
 
-    @finalize_decorator
-    def evaluate_tensor_graph(self, x, edge_index, node_idx=None, **kwargs):
-        self._run_mode = "local"
-        self.pbar.reset(total=self.rollout * self.num_classes)
-        self.gen_dataset.data.x = x
-        self.gen_dataset.data.edge_index = edge_index
-        _, self.raw_explanation, _ = self(
-            self.gen_dataset.data.x, self.gen_dataset.data.edge_index,
-            node_idx=node_idx, **kwargs)
-        self.pbar.close()
-
     def _finalize(self):
         mode = self._run_mode
         assert mode == "local"
